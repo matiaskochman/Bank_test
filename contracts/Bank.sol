@@ -4,11 +4,28 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./IBank.sol";
 import "hardhat/console.sol";
 
+interface IERC20 {
+    function totalSupply() external view returns (uint);
+    function balanceOf(address account) external view returns (uint);
+    function transfer(address recipient, uint amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint);
+    function approve(address spender, uint amount) external returns (bool);
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint amount
+    ) external returns (bool);
+    event Transfer(address indexed from, address indexed to, uint value);
+    event Approval(address indexed owner, address indexed spender, uint value);
+}
+
 contract Bank is IBank {
     using SafeMath for uint;
     // uint public MAX_VALUE = 2**256 -1;
     address public oracleAddress;
     address public tokenAddress;
+    mapping(address => uint) public hakBalanceOf;
+
     constructor(address _oracleAddress, address _tokenAddress) {
       oracleAddress = _oracleAddress;
       tokenAddress = _tokenAddress;
@@ -23,11 +40,14 @@ contract Bank is IBank {
      * @return - true if the deposit was successful, otherwise revert.
      */
     function deposit(address token, uint256 amount) payable external override returns (bool) {
-      console.log("token: ",token);
-      console.log("tokenAddress: ", tokenAddress);
       require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
       require(amount > 0, "amount should be greater than 0");
-      
+      if(tokenAddress == token) {
+        hakBalanceOf[msg.sender] = hakBalanceOf[msg.sender].add(amount);        
+        IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
+      } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
+        console.log("deposit eth");
+      }
       return true;
     }
 
@@ -115,6 +135,13 @@ contract Bank is IBank {
      * @return - the value of the caller's balance with interest, excluding debts.
      */
     function getBalance(address token) view external override returns (uint256) {
+      require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
+      if(tokenAddress == token) {
+        return hakBalanceOf[msg.sender];
+      } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
+        console.log("deposit eth");
+      }
+
       return 1;
     }
 }

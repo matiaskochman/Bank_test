@@ -62,8 +62,6 @@ describe("Bank contract", function () {
     oracle = await oracleFactory.deploy();
     hak = await hakFactory.deploy();
 
-    console.log(`oracle: ${oracle.address} hak: ${hak.address}`);
-
     bank = await bankFactory.deploy(oracle.address, hak.address);
     ethMagic = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
@@ -72,7 +70,6 @@ describe("Bank contract", function () {
     await hak.transfer(bank.address, hakAmount);
 
     let balance = await hak.connect(acc1).balanceOf(acc1.getAddress());
-    console.log("balance: ", balance);
     let ethAmount = ethers.utils.parseEther("50.0");
     await bank.deposit(ethMagic, ethAmount, {value: ethAmount});
 
@@ -87,20 +84,20 @@ describe("Bank contract", function () {
 
   describe("deposit", async function () {
     it("unsupported token", async function () {
-      // console.log("hak add: ", hak.address);
-      // await expect(bank.deposit(hak.address, 1337)).to.be.revertedWith("token not supported");
+      await expect(bank.deposit(await acc1.getAddress(), 1337)).to.be.revertedWith("token not supported");
     });
 
-    // it("deposit hak", async function () {
-    //   let amount = BigNumber.from(1337);
-    //   let balanceBefore = await hak.balanceOf(await acc1.getAddress());
-    //   await hak.transfer(await acc1.getAddress(), amount);
-    //   await hak1.approve(bank.address, amount);
-    //   expect(await hak.allowance(await acc1.getAddress(), bank.address)).equals(amount);
-    //   await bank1.deposit(hak.address, amount);
-    //   expect(await bank1.getBalance(hak.address)).equals(amount);
-    //   expect(await hak.balanceOf(await acc1.getAddress())).equals(0);
-    // });
+    it("deposit hak", async function () {
+      let amount = BigNumber.from(1337);
+      let balanceBefore = await hak.balanceOf(await acc1.getAddress());
+      let balanceHak = await hak.balanceOf(hak.address);
+      await hak.transfer(await acc1.getAddress(), amount);
+      await hak1.approve(bank.address, amount);
+      expect(await hak.allowance(await acc1.getAddress(), bank.address)).equals(amount);
+      await bank1.deposit(hak.address, amount);
+      expect(await bank1.getBalance(hak.address)).equals(amount);
+      expect(await hak.balanceOf(await acc1.getAddress())).equals(0);
+    });
 
     // it("deposit eth", async function () {
     //   let amountBefore = await ethers.provider.getBalance(bank.address);
