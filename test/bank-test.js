@@ -99,13 +99,13 @@ describe("Bank contract", function () {
       expect(await hak.balanceOf(await acc1.getAddress())).equals(0);
     });
 
-    // it("deposit eth", async function () {
-    //   let amountBefore = await ethers.provider.getBalance(bank.address);
-    //   let amount = ethers.utils.parseEther("10.0");
-    //   await bank1.deposit(ethMagic, amount, {value: amount});
-    //   expect(await ethers.provider.getBalance(bank.address)).equals(amountBefore.add(amount));
-    //   expect(await bank1.getBalance(ethMagic)).equals(amount);
-    // });
+    it("deposit eth", async function () {
+      let amountBefore = await ethers.provider.getBalance(bank.address);
+      let amount = ethers.utils.parseEther("10.0");
+      await bank1.deposit(ethMagic, amount, {value: amount});
+      expect(await ethers.provider.getBalance(bank.address)).equals(amountBefore.add(amount));
+      expect(await bank1.getBalance(ethMagic)).equals(amount);
+    });
   });
 
   // describe("withdraw", async function () {

@@ -25,6 +25,7 @@ contract Bank is IBank {
     address public oracleAddress;
     address public tokenAddress;
     mapping(address => uint) public hakBalanceOf;
+    mapping(address => uint) public ethBalanceOf;
 
     constructor(address _oracleAddress, address _tokenAddress) {
       oracleAddress = _oracleAddress;
@@ -46,7 +47,8 @@ contract Bank is IBank {
         hakBalanceOf[msg.sender] = hakBalanceOf[msg.sender].add(amount);        
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
-        console.log("deposit eth");
+        ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].add(amount);        
+                
       }
       return true;
     }
@@ -139,7 +141,8 @@ contract Bank is IBank {
       if(tokenAddress == token) {
         return hakBalanceOf[msg.sender];
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
-        console.log("deposit eth");
+        console.log("balance eth");
+        return ethBalanceOf[msg.sender];
       }
 
       return 1;
