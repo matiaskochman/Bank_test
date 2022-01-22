@@ -7,3 +7,6 @@ typechain
 #Hardhat files
 cache
 artifacts
+
+test/bank-test.js.old
+test/test-original.js.old
