@@ -25,7 +25,8 @@ contract Bank is IBank {
     address public tokenAddress;
     mapping(address => uint) public hakBalanceOf;
     mapping(address => uint) public ethBalanceOf;
-    mapping(address => UserDeposit[]) public depositArray;
+    mapping(address => UserDeposit[]) public hakDepositArray;
+    mapping(address => UserDeposit[]) public ethDepositArray;
 
     constructor(address _oracleAddress, address _tokenAddress) {
       oracleAddress = _oracleAddress;
@@ -33,7 +34,6 @@ contract Bank is IBank {
     }
 
     struct UserDeposit {
-      string coin;
       uint amountDeposited;
       uint blockNumber;
       bool active;
@@ -56,15 +56,15 @@ contract Bank is IBank {
       if(tokenAddress == token) {
 
         hakBalanceOf[msg.sender] = hakBalanceOf[msg.sender].add(amount);
-        UserDeposit memory deposit = UserDeposit("HAK", amount, block.number, true);
-        depositArray[msg.sender].push(deposit);
+        UserDeposit memory deposit = UserDeposit(amount, block.number, true);
+        hakDepositArray[msg.sender].push(deposit);
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
 
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
 
         ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].add(amount);                        
-        UserDeposit memory deposit = UserDeposit("ETH", amount, block.number, true);
-        depositArray[msg.sender].push(deposit);
+        UserDeposit memory deposit = UserDeposit(amount, block.number, true);
+        ethDepositArray[msg.sender].push(deposit);
 
       }
       return true;
@@ -90,89 +90,7 @@ contract Bank is IBank {
       console.log("");
 
       if((tokenAddress == token)) {
-        require(0 < hakBalanceOf[msg.sender], "no balance");
-        require(amount <= hakBalanceOf[msg.sender], "amount exceeds balance");
-        
-        if(amount != 0) {
-          // tengo que sacar el amount adecuado, recorriendo cada deposito y calculando el interes sobre cada depósito
-          // es probable que tenga que sacar parte de un deposito y dejar depositado el resto del mismo depósito
-          // voy a utilizar FIFO (first in first out), osea que retiro los depósitos que se hicieron
-          // al principio
-          UserDeposit[] storage userDepositArray = depositArray[msg.sender];
-
-          uint total;
-          uint totalInterestAccrued;
-          for (uint256 index = 0; index < userDepositArray.length; index++) {
-            if(!userDepositArray[index].active) {
-              continue;
-            }
-            console.log("deposit number: ", index);
-            console.log("deposit amount: ", userDepositArray[index].amountDeposited.div(1000000000000000000));
-            uint val = total.add(userDepositArray[index].amountDeposited);
-
-            if((val <= amount)) {              
-              console.log("caso 1");
-              // la suma del total de depositos procesados + el proximo deposito procesado
-              // es menor al total que quiero retirar
-              total = total.add(userDepositArray[index].amountDeposited);
-
-              uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-              uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-              uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
-              
-              totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
-
-              // marco el deposito como procesado
-              UserDeposit storage userDeposit = userDepositArray[index];
-              userDeposit.active = false;
-            } else {
-              console.log("caso 2");
-              // la suma del total de depositos procesados + el proximo deposito procesado
-              // es mayor al total que quiero retirar.
-              // Tengo que procesar parte del próximo deposito y dejar lo que sobra depositado.
-              uint diff = amount.sub(total);
-
-              // uint aux = amount.sub(total);
-              total = total.add(diff);
-              UserDeposit storage userDeposit = userDepositArray[index];
-
-              userDeposit.amountDeposited = userDeposit.amountDeposited.sub(diff);
-
-              uint256 interest_accrued_per_block = diff.mul(3).div(10000);
-              uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-              uint256 interest_accrued_fixed = delta1 * interest_accrued_per_block;
-              
-              totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);
-
-            }
-            console.log("total: ", total.div(1000000000000000000));
-            console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
-            console.log("");
-            if(amount == total) {
-              // marco el ultipo deposito parcialmente procesado como procesado
-              break;
-            }
-          }
-          if(total>0) {
-            console.log(" ");
-            console.log("end of iteration");
-            console.log("total: ", total.div(1000000000000000000));
-            console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
-            console.log("111111111111111111");
-            console.log(" ");
-            console.log(" ");
-            console.log(" ");
-            console.log(" ");
-            console.log(" ");
-            
-          }
-          // require(total>0, "account is empty, cannot withdraw");
-        } else {
-          console.log("retiramos todo el hak"); 
-        }
-        
-        
-
+        hakWithdraw(amount);
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
         require(0 < ethBalanceOf[msg.sender], "no balance");
         require(amount <= ethBalanceOf[msg.sender], "amount exceeds balance");
@@ -267,5 +185,93 @@ contract Bank is IBank {
       }
 
       return 1;
+    }
+
+
+    function hakWithdraw(uint amount) internal {
+        require(0 < hakBalanceOf[msg.sender], "no balance");
+        require(amount <= hakBalanceOf[msg.sender], "amount exceeds balance");
+        
+        if(amount != 0) {
+          // tengo que sacar el amount adecuado, recorriendo cada deposito y calculando el interes sobre cada depósito
+          // es probable que tenga que sacar parte de un deposito y dejar depositado el resto del mismo depósito
+          // voy a utilizar FIFO (first in first out), osea que retiro los depósitos que se hicieron
+          // al principio
+          UserDeposit[] storage userDepositArray = hakDepositArray[msg.sender];
+
+          uint total;
+          uint totalInterestAccrued;
+          for (uint256 index = 0; index < userDepositArray.length; index++) {
+            if(!userDepositArray[index].active) {
+              continue;
+            }
+            console.log("deposit number: ", index);
+            console.log("deposit amount: ", userDepositArray[index].amountDeposited.div(1000000000000000000));
+            uint val = total.add(userDepositArray[index].amountDeposited);
+
+            if((val <= amount)) {              
+              console.log("caso 1");
+              // la suma del total de depositos procesados + el proximo deposito procesado
+              // es menor al total que quiero retirar
+              total = total.add(userDepositArray[index].amountDeposited);
+
+              uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
+              uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
+              uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+              
+              totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+
+              // marco el deposito como procesado
+              UserDeposit storage userDeposit = userDepositArray[index];
+              userDeposit.amountDeposited = 0;
+              userDeposit.active = false;
+            } else {
+              console.log("caso 2");
+              // la suma del total de depositos procesados + el proximo deposito procesado
+              // es mayor al total que quiero retirar.
+              // Tengo que procesar parte del próximo deposito y dejar lo que sobra depositado.
+              uint diff = amount.sub(total);
+
+              // uint aux = amount.sub(total);
+              total = total.add(diff);
+              UserDeposit storage userDeposit = userDepositArray[index];
+
+              userDeposit.amountDeposited = userDeposit.amountDeposited.sub(diff);
+
+              uint256 interest_accrued_per_block = diff.mul(3).div(10000);
+              uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
+              uint256 interest_accrued_fixed = delta1 * interest_accrued_per_block;
+              
+              totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);
+
+            }
+            console.log("total: ", total.div(1000000000000000000));
+            console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
+            console.log("left to calculate: ", amount.sub(total).div(1000000000000000000));
+            console.log("");
+            if(amount == total) {
+              // marco el ultipo deposito parcialmente procesado como procesado
+              break;
+            }
+          }
+          if(total>0) {
+            console.log(" ");
+            console.log("end of iteration");
+            console.log("total: ", total.div(1000000000000000000));
+            console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
+            console.log("111111111111111111");
+            console.log(" ");
+            console.log(" ");
+            console.log(" ");
+            console.log(" ");
+            console.log(" ");
+            
+          }
+          uint totalAmountToTransfer = total.add(totalInterestAccrued);
+          IERC20(tokenAddress).approve(address(this), totalAmountToTransfer);
+          IERC20(tokenAddress).transferFrom(address(this), msg.sender, totalAmountToTransfer);
+        } else {
+          console.log("retiramos todo el hak"); 
+        }      
     }
 }
