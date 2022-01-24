@@ -23,8 +23,8 @@ contract Bank is IBank {
     using SafeMath for uint256;
     address public oracleAddress;
     address public tokenAddress;
-    mapping(address => uint) public hakBalanceOf;
-    mapping(address => uint) public ethBalanceOf;
+    mapping(address => uint) private hakBalanceOf;
+    mapping(address => uint) private ethBalanceOf;
     mapping(address => UserDeposit[]) private hakDepositArray;
     mapping(address => UserDeposit[]) private ethDepositArray;
 
@@ -38,7 +38,9 @@ contract Bank is IBank {
       uint blockNumber;
       bool active;
     }
+    receive() external payable {
 
+    }
     /**
      * The purpose of this function is to allow end-users to deposit a given 
      * token amount into their bank account.
@@ -58,6 +60,13 @@ contract Bank is IBank {
         hakBalanceOf[msg.sender] = hakBalanceOf[msg.sender].add(amount);
         UserDeposit memory deposit = UserDeposit(amount, block.number, true);
         hakDepositArray[msg.sender].push(deposit);
+
+        emit Deposit(
+            msg.sender, // account of user who deposited
+            token, // token that was deposited
+            amount // amount of token that was deposited
+        );
+
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
 
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
@@ -66,6 +75,11 @@ contract Bank is IBank {
         UserDeposit memory deposit = UserDeposit(amount, block.number, true);
         ethDepositArray[msg.sender].push(deposit);
 
+        emit Deposit(
+            msg.sender, // account of user who deposited
+            token, // token that was deposited
+            amount // amount of token that was deposited
+        );
       }
       return true;
     }
@@ -94,18 +108,40 @@ contract Bank is IBank {
         require(0 < hakBalanceOf[msg.sender], "no balance");
         require(amount <= hakBalanceOf[msg.sender], "amount exceeds balance");
 
-        calculateWithdraw(amount, hakDepositArray[msg.sender]);
+        (uint amountDepositedToTransfer, uint interestAccrued) = calculateWithdraw(amount, hakDepositArray[msg.sender]);
+
+        
+        hakBalanceOf[msg.sender] = hakBalanceOf[msg.sender].sub(amountDepositedToTransfer);
+
+        uint total = amountDepositedToTransfer.add(interestAccrued);
+        IERC20(tokenAddress).approve(address(this), total);
+        IERC20(tokenAddress).transferFrom(address(this), msg.sender, total);
+        emit Withdraw(
+          msg.sender, // account of user who withdrew funds
+          token, // token that was withdrawn
+          total // amount of token that was withdrawn
+        );
+
 
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
         require(0 < ethBalanceOf[msg.sender], "no balance");
         require(amount <= ethBalanceOf[msg.sender], "amount exceeds balance");
 
-        if(amount != 0) {
-          console.log("retiramos amount of eth");
-        } else {
-          console.log("retiramos todo el eth"); 
-        }
+        (uint amountDepositedToTransfer, uint interestAccrued)  = calculateWithdraw(amount, ethDepositArray[msg.sender]);
 
+        uint total = amountDepositedToTransfer.add(interestAccrued);
+
+        ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].sub(amountDepositedToTransfer);
+        console.log("total eth: ", total.div(1000000000000000));
+        emit Withdraw(
+          msg.sender, // account of user who withdrew funds
+          token, // token that was withdrawn
+          total // amount of token that was withdrawn
+        );
+
+        (bool sent, bytes memory data) = payable(msg.sender).call{value: total}("");
+        require(sent, "Failed to send Ether");
+        // msg.sender.transfer(total);
       }
       
     }
@@ -189,7 +225,7 @@ contract Bank is IBank {
     }
 
 
-    function calculateWithdraw(uint amount, UserDeposit[] storage userDepositArray) internal {        
+    function calculateWithdraw(uint amount, UserDeposit[] storage userDepositArray) internal returns (uint, uint){        
         if(amount != 0) {
           // tengo que sacar el amount adecuado, recorriendo cada deposito y calculando el interes sobre cada depósito
           // es probable que tenga que sacar parte de un deposito y dejar depositado el resto del mismo depósito
@@ -200,7 +236,7 @@ contract Bank is IBank {
           uint total;
           uint totalInterestAccrued;
           for (uint256 index = 0; index < userDepositArray.length; index++) {
-            if(!userDepositArray[index].active) {
+            if(userDepositArray[index].amountDeposited == 0) {
               continue;
             }
             console.log("deposit number: ", index);
@@ -222,7 +258,7 @@ contract Bank is IBank {
               // marco el deposito como procesado
               UserDeposit storage userDeposit = userDepositArray[index];
               userDeposit.amountDeposited = 0;
-              userDeposit.active = false;
+              // userDeposit.active = false;
             } else {
               console.log("caso 2");
               // la suma del total de depositos procesados + el proximo deposito procesado
@@ -266,10 +302,12 @@ contract Bank is IBank {
             
           }
           uint totalAmountToTransfer = total.add(totalInterestAccrued);
-          IERC20(tokenAddress).approve(address(this), totalAmountToTransfer);
-          IERC20(tokenAddress).transferFrom(address(this), msg.sender, totalAmountToTransfer);
+          return (total, totalInterestAccrued);
+          // IERC20(tokenAddress).approve(address(this), totalAmountToTransfer);
+          // IERC20(tokenAddress).transferFrom(address(this), msg.sender, totalAmountToTransfer);
         } else {
-          console.log("retiramos todo el hak"); 
+          console.log("retiramos todo");
+
         }      
     }
 }

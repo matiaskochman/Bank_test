@@ -39,12 +39,12 @@ describe("Bank contract", function () {
   let ethMagic;
 
   async function mineBlocks(blocksToMine) {
-    let startBlock = await ethers.provider.getBlockNumber();
-    let timestamp = (await ethers.provider.getBlock(startBlock)).timestamp;
+    const startBlock = await ethers.provider.getBlockNumber();
+    const timestamp = (await ethers.provider.getBlock(startBlock)).timestamp;
     for (let i = 1; i <= blocksToMine; ++i) {
       await ethers.provider.send("evm_mine", [timestamp + i * 13]);
     }
-    let endBlock = await ethers.provider.getBlockNumber();
+    const endBlock = await ethers.provider.getBlockNumber();
     // expect(endBlock).equals(startBlock + blocksToMine);
   }
 
@@ -61,11 +61,11 @@ describe("Bank contract", function () {
     ethMagic = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
     // provide some tokens/eth to the bank to pay the interest
-    let hakAmount = ethers.utils.parseEther("50.0");
+    const hakAmount = ethers.utils.parseEther("50.0");
     await hak.transfer(bank.address, hakAmount);
 
-    let balance = await hak.connect(acc1).balanceOf(acc1.getAddress());
-    let ethAmount = ethers.utils.parseEther("50.0");
+    const balance = await hak.connect(acc1).balanceOf(acc1.getAddress());
+    const ethAmount = ethers.utils.parseEther("50.0");
     await bank.deposit(ethMagic, ethAmount, { value: ethAmount });
 
     bank1 = bank.connect(acc1);
@@ -85,9 +85,9 @@ describe("Bank contract", function () {
     });
 
     it("deposit hak", async function () {
-      let amount = BigNumber.from(1337);
-      let balanceBefore = await hak.balanceOf(await acc1.getAddress());
-      let balanceHak = await hak.balanceOf(hak.address);
+      const amount = BigNumber.from(1337);
+      const balanceBefore = await hak.balanceOf(await acc1.getAddress());
+      const balanceHak = await hak.balanceOf(hak.address);
       await hak.transfer(await acc1.getAddress(), amount);
       await hak1.approve(bank.address, amount);
       expect(await hak.allowance(await acc1.getAddress(), bank.address)).equals(
@@ -99,8 +99,8 @@ describe("Bank contract", function () {
     });
 
     it("deposit eth", async function () {
-      let amountBefore = await ethers.provider.getBalance(bank.address);
-      let amount = ethers.utils.parseEther("10.0");
+      const amountBefore = await ethers.provider.getBalance(bank.address);
+      const amount = ethers.utils.parseEther("10.0");
       await bank1.deposit(ethMagic, amount, { value: amount });
       expect(await ethers.provider.getBalance(bank.address)).equals(
         amountBefore.add(amount)
@@ -117,7 +117,7 @@ describe("Bank contract", function () {
     });
 
     it("without balance", async function () {
-      let amount = BigNumber.from(1337);
+      const amount = BigNumber.from(1337);
       await expect(bank1.withdraw(ethMagic, amount)).to.be.revertedWith(
         "no balance"
       );
@@ -127,7 +127,7 @@ describe("Bank contract", function () {
     });
 
     it("balance too low", async function () {
-      let amount = BigNumber.from(10000);
+      const amount = BigNumber.from(10000);
       await bank1.deposit(ethMagic, amount, { value: amount });
       await expect(
         bank1.withdraw(ethMagic, amount.add(1000))
@@ -145,40 +145,49 @@ describe("Bank contract", function () {
       await hak.transfer(await acc1.getAddress(), total);
       await hak1.approve(bank.address, total);
 
-      await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
 
-      await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
+      await bank1.deposit(ethMagic, ethers.utils.parseEther("50"), {
+        value: ethers.utils.parseEther("50"),
+      });
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
+      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
 
       // await bank1.deposit(hak.address, ethers.utils.parseEther("150"));
       // await bank1.deposit(hak.address, amount3);
       // expect(await bank1.getBalance(hak.address)).equals(total);
 
       // expect(await hak.balanceOf(await acc1.getAddress())).equals(0);
-      await mineBlocks(99);
-      bank1.withdraw(hak.address, ethers.utils.parseEther("145.0"));
-      await mineBlocks(99);
-      bank1.withdraw(hak.address, ethers.utils.parseEther("5.0"));
-      await mineBlocks(99);
-      bank1.withdraw(hak.address, ethers.utils.parseEther("55.0"));
-      await mineBlocks(99);
-      bank1.withdraw(hak.address, ethers.utils.parseEther("55.0"));
-      await mineBlocks(99);
-      bank1.withdraw(hak.address, ethers.utils.parseEther("30.0"));
+      // await mineBlocks(99);
+      // bank1.withdraw(hak.address, ethers.utils.parseEther("145.0"));
+      // await mineBlocks(99);
+      // bank1.withdraw(hak.address, ethers.utils.parseEther("5.0"));
+      // await mineBlocks(99);
+      // bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"));
+      // await mineBlocks(99);
+      // bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"));
+      // await mineBlocks(99);
+      // bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"));
+      // await mineBlocks(99);
+
+      bank1.withdraw(ethMagic, ethers.utils.parseEther("50.0"));
       await mineBlocks(99);
 
       const balance = await hak1.balanceOf(acc1.address);
       console.log("balance of hak: ", balance.toString());
+
+      const ethBalance = await ethers.provider.getBalance(acc1.address);
+      console.log("balance of eth: ", ethBalance);
       // await expect(
       //   bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"))
       // ).to.be.revertedWith("account is empty");
