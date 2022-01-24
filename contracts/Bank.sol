@@ -25,8 +25,8 @@ contract Bank is IBank {
     address public tokenAddress;
     mapping(address => uint) public hakBalanceOf;
     mapping(address => uint) public ethBalanceOf;
-    mapping(address => UserDeposit[]) public hakDepositArray;
-    mapping(address => UserDeposit[]) public ethDepositArray;
+    mapping(address => UserDeposit[]) private hakDepositArray;
+    mapping(address => UserDeposit[]) private ethDepositArray;
 
     constructor(address _oracleAddress, address _tokenAddress) {
       oracleAddress = _oracleAddress;
@@ -90,21 +90,22 @@ contract Bank is IBank {
       console.log("");
 
       if((tokenAddress == token)) {
-        hakWithdraw(amount);
+
+        require(0 < hakBalanceOf[msg.sender], "no balance");
+        require(amount <= hakBalanceOf[msg.sender], "amount exceeds balance");
+
+        calculateWithdraw(amount, hakDepositArray[msg.sender]);
+
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
         require(0 < ethBalanceOf[msg.sender], "no balance");
         require(amount <= ethBalanceOf[msg.sender], "amount exceeds balance");
-        if(amount <= ethBalanceOf[msg.sender]) {
 
-          if(amount != 0) {
-            console.log("retiramos amount of eth");
-          } else {
-            console.log("retiramos todo el eth"); 
-          }
-
+        if(amount != 0) {
+          console.log("retiramos amount of eth");
         } else {
-          console.log("quiere retirar mas eth del depositado, malechor, delincuente");
+          console.log("retiramos todo el eth"); 
         }
+
       }
       
     }
@@ -188,16 +189,13 @@ contract Bank is IBank {
     }
 
 
-    function hakWithdraw(uint amount) internal {
-        require(0 < hakBalanceOf[msg.sender], "no balance");
-        require(amount <= hakBalanceOf[msg.sender], "amount exceeds balance");
-        
+    function calculateWithdraw(uint amount, UserDeposit[] storage userDepositArray) internal {        
         if(amount != 0) {
           // tengo que sacar el amount adecuado, recorriendo cada deposito y calculando el interes sobre cada depósito
           // es probable que tenga que sacar parte de un deposito y dejar depositado el resto del mismo depósito
           // voy a utilizar FIFO (first in first out), osea que retiro los depósitos que se hicieron
           // al principio
-          UserDeposit[] storage userDepositArray = hakDepositArray[msg.sender];
+          // UserDeposit[] storage userDepositArray = depositArray[msg.sender];
 
           uint total;
           uint totalInterestAccrued;
