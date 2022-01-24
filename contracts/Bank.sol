@@ -99,9 +99,9 @@ contract Bank is IBank {
      */
     function withdraw(address token, uint256 amount) external override returns (uint256) {
       require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
-      console.log("111111111111111111");
-      console.log("withdraw executing amount: ", amount.div(1000000000000000000));
-      console.log("");
+      // console.log("111111111111111111");
+      // console.log("withdraw executing amount: ", amount.div(1000000000000000000));
+      // console.log("");
 
       if((tokenAddress == token)) {
 
@@ -132,7 +132,7 @@ contract Bank is IBank {
         uint total = amountDepositedToTransfer.add(interestAccrued);
 
         ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].sub(amountDepositedToTransfer);
-        console.log("total eth: ", total.div(1000000000000000));
+        // console.log("total eth: ", total.div(1000000000000000));
         emit Withdraw(
           msg.sender, // account of user who withdrew funds
           token, // token that was withdrawn
@@ -214,11 +214,49 @@ contract Bank is IBank {
      */
     function getBalance(address token) view external override returns (uint256) {
       require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
+      uint total;
+      uint totalInterestAccrued;
       if(tokenAddress == token) {
-        return hakBalanceOf[msg.sender];
+        // return hakBalanceOf[msg.sender];
+        UserDeposit[] memory userDepositArray = hakDepositArray[msg.sender];
+        for (uint256 index = 0; index < userDepositArray.length; index++) {
+          if(userDepositArray[index].amountDeposited == 0) {
+            continue;
+          }
+            total = total.add(userDepositArray[index].amountDeposited);
+
+            uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
+            uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
+            uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+            
+            totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+
+            // marco el deposito como procesado
+            UserDeposit memory userDeposit = userDepositArray[index];
+            userDeposit.amountDeposited = 0;
+        }
+        return total.add(totalInterestAccrued);
+
+
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
-        console.log("balance eth");
-        return ethBalanceOf[msg.sender];
+        UserDeposit[] memory userDepositArray = ethDepositArray[msg.sender];
+        for (uint256 index = 0; index < userDepositArray.length; index++) {
+          if(userDepositArray[index].amountDeposited == 0) {
+            continue;
+          }
+            total = total.add(userDepositArray[index].amountDeposited);
+
+            uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
+            uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
+            uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+            
+            totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+
+            // marco el deposito como procesado
+            UserDeposit memory userDeposit = userDepositArray[index];
+            userDeposit.amountDeposited = 0;
+        }
+        return total.add(totalInterestAccrued);
       }
 
       return 1;
@@ -239,12 +277,12 @@ contract Bank is IBank {
             if(userDepositArray[index].amountDeposited == 0) {
               continue;
             }
-            console.log("deposit number: ", index);
-            console.log("deposit amount: ", userDepositArray[index].amountDeposited.div(1000000000000000000));
+            // console.log("deposit number: ", index);
+            // console.log("deposit amount: ", userDepositArray[index].amountDeposited.div(1000000000000000000));
             uint val = total.add(userDepositArray[index].amountDeposited);
 
             if((val <= amount)) {              
-              console.log("caso 1");
+              // console.log("caso 1");
               // la suma del total de depositos procesados + el proximo deposito procesado
               // es menor al total que quiero retirar
               total = total.add(userDepositArray[index].amountDeposited);
@@ -260,7 +298,7 @@ contract Bank is IBank {
               userDeposit.amountDeposited = 0;
               // userDeposit.active = false;
             } else {
-              console.log("caso 2");
+              // console.log("caso 2");
               // la suma del total de depositos procesados + el proximo deposito procesado
               // es mayor al total que quiero retirar.
               // Tengo que procesar parte del próximo deposito y dejar lo que sobra depositado.
@@ -279,35 +317,54 @@ contract Bank is IBank {
               totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);
 
             }
-            console.log("total: ", total.div(1000000000000000000));
-            console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
-            console.log("left to calculate: ", amount.sub(total).div(1000000000000000000));
-            console.log("");
+            // console.log("total: ", total.div(1000000000000000000));
+            // console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
+            // console.log("left to calculate: ", amount.sub(total).div(1000000000000000000));
+            // console.log("");
             if(amount == total) {
               // marco el ultipo deposito parcialmente procesado como procesado
               break;
             }
           }
-          if(total>0) {
-            console.log(" ");
-            console.log("end of iteration");
-            console.log("total: ", total.div(1000000000000000000));
-            console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
-            console.log("111111111111111111");
-            console.log(" ");
-            console.log(" ");
-            console.log(" ");
-            console.log(" ");
-            console.log(" ");
+          // if(total>0) {
+          //   console.log(" ");
+          //   console.log("end of iteration");
+          //   console.log("total: ", total.div(1000000000000000000));
+          //   console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
+          //   console.log("111111111111111111");
+          //   console.log(" ");
+          //   console.log(" ");
+          //   console.log(" ");
+          //   console.log(" ");
+          //   console.log(" ");
             
-          }
-          uint totalAmountToTransfer = total.add(totalInterestAccrued);
+          // }
+          // uint totalAmountToTransfer = total.add(totalInterestAccrued);
           return (total, totalInterestAccrued);
           // IERC20(tokenAddress).approve(address(this), totalAmountToTransfer);
           // IERC20(tokenAddress).transferFrom(address(this), msg.sender, totalAmountToTransfer);
         } else {
-          console.log("retiramos todo");
+          // console.log("retiramos todo");
+          uint total;
+          uint totalInterestAccrued;
 
+          for (uint256 index = 0; index < userDepositArray.length; index++) {
+            if(userDepositArray[index].amountDeposited == 0) {
+              continue;
+            }
+              total = total.add(userDepositArray[index].amountDeposited);
+
+              uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
+              uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
+              uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+              
+              totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+
+              // marco el deposito como procesado
+              UserDeposit storage userDeposit = userDepositArray[index];
+              userDeposit.amountDeposited = 0;
+          }
+          return (total, totalInterestAccrued);
         }      
     }
 }

@@ -184,75 +184,75 @@ describe("Bank contract", function () {
       await mineBlocks(99);
 
       const balance = await hak1.balanceOf(acc1.address);
-      console.log("balance of hak: ", balance.toString());
+      // console.log("balance of hak: ", balance.toString());
 
       const ethBalance = await ethers.provider.getBalance(acc1.address);
-      console.log("balance of eth: ", ethBalance);
+      // console.log("balance of eth: ", ethBalance);
       // await expect(
       //   bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"))
       // ).to.be.revertedWith("account is empty");
     });
   });
 
-  // describe("interest", async function () {
-  //   it("100 blocks", async function () {
-  //     let amount = BigNumber.from(10000);
-  //     await bank1.deposit(ethMagic, amount, {value: amount});
-  //     await mineBlocks(99);
-  //     await expect(bank1.withdraw(ethMagic, 0))
-  //       .to.emit(bank, "Withdraw")
-  //       .withArgs(await acc1.getAddress(), ethMagic, 10300);
-  //   });
+  describe("interest", async function () {
+    it("100 blocks", async function () {
+      let amount = BigNumber.from(10000);
+      await bank1.deposit(ethMagic, amount, {value: amount});
+      await mineBlocks(99);
+      await expect(bank1.withdraw(ethMagic, 0))
+        .to.emit(bank, "Withdraw")
+        .withArgs(await acc1.getAddress(), ethMagic, 10300);
+    });
 
-  //   it("150 blocks", async function () {
-  //     let amount = BigNumber.from(10000);
-  //     await bank1.deposit(ethMagic, amount, {value: amount});
-  //     await mineBlocks(149);
-  //     await expect(bank1.withdraw(ethMagic, 0))
-  //       .to.emit(bank, "Withdraw")
-  //       .withArgs(await acc1.getAddress(), ethMagic, 10450);
-  //       // (1 + 0.03 * 150/100) * 10000
-  //   });
+    it("150 blocks", async function () {
+      let amount = BigNumber.from(10000);
+      await bank1.deposit(ethMagic, amount, {value: amount});
+      await mineBlocks(149);
+      await expect(bank1.withdraw(ethMagic, 0))
+        .to.emit(bank, "Withdraw")
+        .withArgs(await acc1.getAddress(), ethMagic, 10450);
+        // (1 + 0.03 * 150/100) * 10000
+    });
 
-  //   it("250 blocks", async function () {
-  //     let amount = BigNumber.from(10000);
-  //     await bank1.deposit(ethMagic, amount, {value: amount});
-  //     await mineBlocks(249);
-  //     await expect(bank1.withdraw(ethMagic, 0))
-  //       .to.emit(bank, "Withdraw")
-  //       .withArgs(await acc1.getAddress(), ethMagic, 10750);
-  //       // (1 + 0.03 * 250/100) * 10000
-  //   });
+    it("250 blocks", async function () {
+      let amount = BigNumber.from(10000);
+      await bank1.deposit(ethMagic, amount, {value: amount});
+      await mineBlocks(249);
+      await expect(bank1.withdraw(ethMagic, 0))
+        .to.emit(bank, "Withdraw")
+        .withArgs(await acc1.getAddress(), ethMagic, 10750);
+        // (1 + 0.03 * 250/100) * 10000
+    });
 
-  //   it("1311 blocks", async function () {
-  //     let amount = BigNumber.from(10000);
-  //     await bank1.deposit(ethMagic, amount, {value: amount});
-  //     await mineBlocks(1310);
-  //     await expect(bank1.withdraw(ethMagic, 0))
-  //       .to.emit(bank, "Withdraw")
-  //       .withArgs(await acc1.getAddress(), ethMagic, 13933);
-  //       // (1 + 0.03 * 1311/100) * 10000
-  //   });
+    it("1311 blocks", async function () {
+      let amount = BigNumber.from(10000);
+      await bank1.deposit(ethMagic, amount, {value: amount});
+      await mineBlocks(1310);
+      await expect(bank1.withdraw(ethMagic, 0))
+        .to.emit(bank, "Withdraw")
+        .withArgs(await acc1.getAddress(), ethMagic, 13933);
+        // (1 + 0.03 * 1311/100) * 10000
+    });
 
-  //   it("200 blocks in 2 steps", async function () {
-  //     let amount = BigNumber.from(10000);
-  //     // deposit once, wait 100 blocks and check balance
-  //     await bank1.deposit(ethMagic, amount, {value: amount});
-  //     await mineBlocks(100);
-  //     expect(await bank1.getBalance(ethMagic)).equals(10300);
+    it("200 blocks in 2 steps", async function () {
+      let amount = BigNumber.from(10000);
+      // deposit once, wait 100 blocks and check balance
+      await bank1.deposit(ethMagic, amount, {value: amount});
+      await mineBlocks(100);
+      expect(await bank1.getBalance(ethMagic)).equals(10300);
 
-  //     // deposit again to trigger account update, wait 100 blocks and withdraw all
-  //     await bank1.deposit(ethMagic, amount, {value: amount});
-  //     await mineBlocks(99);
-  //     await expect(bank1.withdraw(ethMagic, 0))
-  //       .to.emit(bank, "Withdraw")
-  //       .withArgs(await acc1.getAddress(), ethMagic,
-  //           10300 // initial deposit + 100 block interest reward
-  //         + 3     // the 1 block where additional funds are deposited
-  //         + 10600 // second deposit + 100 block reward on 20k
-  //       );
-  //   });
-  // });
+      // deposit again to trigger account update, wait 100 blocks and withdraw all
+      await bank1.deposit(ethMagic, amount, {value: amount});
+      await mineBlocks(99);
+      await expect(bank1.withdraw(ethMagic, 0))
+        .to.emit(bank, "Withdraw")
+        .withArgs(await acc1.getAddress(), ethMagic,
+            10300 // initial deposit + 100 block interest reward
+          + 3     // the 1 block where additional funds are deposited
+          + 10600 // second deposit + 100 block reward on 20k
+        );
+    });
+  });
 
   // describe("borrow", async function () {
   //   it("no collateral", async function () {
