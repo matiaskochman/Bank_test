@@ -178,13 +178,32 @@ contract Bank is IBank {
       console.log("hakbalance: ", hakBalance);
 
       uint hakBalanceInEther = hakBalance.mul(price);
+      console.log("hakBalanceInEther: ", hakBalanceInEther);
       uint ethBalance = checkBalance(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-      console.log("ethbalance: ", ethBalance);
 
-      uint result1 = hakBalance.mul(10000).div(amount);
-      console.log("result: ", result1);
-      require(result1 >= 15000, "no collateral deposited");
-      return 1;
+      uint colateralRatio = hakBalanceInEther.mul(10000).div(amount).div(1000000000000000000);
+      
+      console.log("result: ", colateralRatio);
+      require(colateralRatio >= 15000, "no collateral deposited");
+
+      // uint colateralAmount = 
+      // UserDeposit memory deposit = UserLoan(amount, block.number, result);
+      // hakDepositArray[msg.sender].push(deposit);
+
+      // struct UserLoan {
+      //   uint amountBorrowed;
+      //   uint blockNumber;
+      //   uint colateralAmount;
+      // }
+
+      emit Borrow(
+          msg.sender, // account who borrowed the funds
+          token, // token that was borrowed
+          amount, // amount of token that was borrowed
+          colateralRatio // collateral ratio for the account, after the borrow
+      );
+
+      return colateralRatio;
     }
      
     /**
@@ -228,7 +247,38 @@ contract Bank is IBank {
      *           return MAX_INT.
      */
     function getCollateralRatio(address token, address account) view external override returns (uint256) {
+      uint hakBalance = checkBalance(token);      
+      
+
       return 1;
+    }
+
+    function checkLoans(address token) view internal returns (uint256) {
+      require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
+      uint total;
+      uint totalInterestAccrued;
+      
+      UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
+
+      uint totalBorrowed;
+      for (uint256 index = 0; index < userLoansArray.length; index++) {
+        if(userLoansArray[index].amountBorrowed == 0) {
+          continue;
+        }
+          totalBorrowed = totalBorrowed.add(userLoansArray[index].amountBorrowed);
+
+          uint interest_accrued_per_block = userLoansArray[index].amountBorrowed.mul(5).div(10000);
+          uint delta1 = (block.number.sub(userLoansArray[index].blockNumber));
+          uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+          
+          totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+
+          // marco el deposito como procesado
+          UserLoan memory userLoan = userLoansArray[index];
+          userLoan.amountBorrowed = 0;
+      }
+      return totalBorrowed.add(totalInterestAccrued);
+
     }
 
     /**
@@ -352,49 +402,30 @@ contract Bank is IBank {
       require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
       uint total;
       uint totalInterestAccrued;
+      UserDeposit[] memory userDepositArray;
+
       if(tokenAddress == token) {
-        
-        UserDeposit[] memory userDepositArray = hakDepositArray[msg.sender];
-        for (uint256 index = 0; index < userDepositArray.length; index++) {
-          if(userDepositArray[index].amountDeposited == 0) {
-            continue;
-          }
-            total = total.add(userDepositArray[index].amountDeposited);
-
-            uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-            uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-            uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
-            
-            totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
-
-            // marco el deposito como procesado
-            UserDeposit memory userDeposit = userDepositArray[index];
-            userDeposit.amountDeposited = 0;
-        }
-        uint totalWithInterest = total.add(totalInterestAccrued);
-        console.log("total: ", totalWithInterest);
-        return totalWithInterest;
-
-
+         userDepositArray = hakDepositArray[msg.sender];
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
-        UserDeposit[] memory userDepositArray = ethDepositArray[msg.sender];
-        for (uint256 index = 0; index < userDepositArray.length; index++) {
-          if(userDepositArray[index].amountDeposited == 0) {
-            continue;
-          }
-            total = total.add(userDepositArray[index].amountDeposited);
-
-            uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-            uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-            uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
-            
-            totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
-
-            // marco el deposito como procesado
-            UserDeposit memory userDeposit = userDepositArray[index];
-            userDeposit.amountDeposited = 0;
-        }
-        return total.add(totalInterestAccrued);
+        userDepositArray = ethDepositArray[msg.sender];
       }
+
+      for (uint256 index = 0; index < userDepositArray.length; index++) {
+        if(userDepositArray[index].amountDeposited == 0) {
+          continue;
+        }
+          total = total.add(userDepositArray[index].amountDeposited);
+
+          uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
+          uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
+          uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+          
+          totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+
+          // marco el deposito como procesado
+          UserDeposit memory userDeposit = userDepositArray[index];
+          userDeposit.amountDeposited = 0;
+      }
+      return total.add(totalInterestAccrued);
   }
 }
