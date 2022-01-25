@@ -171,25 +171,30 @@ contract Bank is IBank {
      */
     function borrow(address token, uint256 amount) external override returns (uint256) {
       require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "incorrect token");
-      // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
-      IPriceOracle oracle = IPriceOracle(oracleAddress);
-      uint price = oracle.getVirtualPrice(tokenAddress);
-      uint hakBalance = checkBalance(tokenAddress);
+      require(amount >= 0 , "invalid input");
 
+      uint hakBalance = checkBalance(tokenAddress);
       require(hakBalance > 0, "no collateral deposited");
 
-      uint hakBalanceInEther = hakBalance.mul(price);
-      uint ethBalance = checkBalance(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
-      uint colateralRatio = hakBalanceInEther.mul(10000).div(amount).div(1000000000000000000);
+      // the sum of loans of user + interest
+      uint loansBalance = checkLoans(token);
+
+      IPriceOracle oracle = IPriceOracle(oracleAddress);
+      uint hakPrice = oracle.getVirtualPrice(tokenAddress);
+
+      uint hakBalanceInEther = hakBalance.mul(hakPrice);
+      // uint ethBalance = checkBalance(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+
+      if(amount > 0) {
+      // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
+      uint colateralRatio = hakBalanceInEther.mul(10000).div(amount.add(loansBalance)).div(1000000000000000000);
       
       require(colateralRatio >= 15000, "borrow would exceed collateral ratio");
 
       UserLoan memory loan = UserLoan(amount,block.number,colateralRatio);
       UserLoan[] storage userLoanArray = ethLoansArray[msg.sender];
       userLoanArray.push(loan);
-
-      msg.sender.transfer(amount);
 
       emit Borrow(
           msg.sender, // account who borrowed the funds
@@ -198,7 +203,29 @@ contract Bank is IBank {
           colateralRatio // collateral ratio for the account, after the borrow
       );
 
+      msg.sender.transfer(amount);
       return colateralRatio;
+
+      } else if(amount == 0){
+        uint toBorrow = hakBalance.mul(10).div(15).sub(loansBalance);
+        uint colateralRatio = hakBalanceInEther.mul(10000).div(amount.add(loansBalance.add(toBorrow))).div(1000000000000000000);
+        console.log("toborrow: ", toBorrow, " colateralRatio: ", colateralRatio);
+
+        UserLoan memory loan = UserLoan(toBorrow,block.number,colateralRatio);
+        UserLoan[] storage userLoanArray = ethLoansArray[msg.sender];
+        userLoanArray.push(loan);
+
+        emit Borrow(
+            msg.sender, // account who borrowed the funds
+            token, // token that was borrowed
+            toBorrow, // amount of token that was borrowed
+            colateralRatio // collateral ratio for the account, after the borrow
+        );
+
+        msg.sender.transfer(toBorrow);
+
+        return colateralRatio;
+      }
     }
      
     /**
@@ -244,7 +271,7 @@ contract Bank is IBank {
     function getCollateralRatio(address token, address account) view external override returns (uint256) {
       // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.      
       uint loansBalance = checkLoans(token);
-      require(loansBalance > 0, "no loans");
+      
 
       IPriceOracle oracle = IPriceOracle(oracleAddress);
       uint price = oracle.getVirtualPrice(tokenAddress);

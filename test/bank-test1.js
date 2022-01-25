@@ -225,20 +225,20 @@ describe("Bank contract", function () {
         .equals(16668);
     });
 
-    // it("max borrow", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   // there will be a block of interest applied to the collateral which
-    //   // leads to the deviation from 10.0
-    //   let borrowAmount = ethers.utils.parseEther("10.003");
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   await expect(bank1.borrow(ethMagic, 0))
-    //     .to.emit(bank, "Borrow")
-    //     .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15000);
-    //   expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
-    //     .equals(15000);
-    // });
+    it("max borrow", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      // there will be a block of interest applied to the collateral which
+      // leads to the deviation from 10.0
+      let borrowAmount = ethers.utils.parseEther("10.003");
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+      await expect(bank1.borrow(ethMagic, 0))
+        .to.emit(bank, "Borrow")
+        .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15000);
+      expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
+        .equals(15000);
+    });
 
     // it("multiple borrows", async function () {
     //   let collateralAmount = ethers.utils.parseEther("15.0");
