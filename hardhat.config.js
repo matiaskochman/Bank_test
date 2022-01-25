@@ -31,7 +31,7 @@ module.exports = {
     ],
   },
   networks: {
-    ropsten: {
+    goerli: {
       url: process.env.GOERLI_URL || "",
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],

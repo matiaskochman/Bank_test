@@ -2,6 +2,7 @@ pragma solidity 0.7.0;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./IBank.sol";
+import "./IPriceOracle.sol";
 import "hardhat/console.sol";
 
 interface IERC20 {
@@ -27,6 +28,8 @@ contract Bank is IBank {
     mapping(address => uint) private ethBalanceOf;
     mapping(address => UserDeposit[]) private hakDepositArray;
     mapping(address => UserDeposit[]) private ethDepositArray;
+    mapping(address => uint) private ethBalanceBorrowed;
+    mapping(address => UserLoan[]) private ethLoansArray;
 
     constructor(address _oracleAddress, address _tokenAddress) {
       oracleAddress = _oracleAddress;
@@ -36,8 +39,14 @@ contract Bank is IBank {
     struct UserDeposit {
       uint amountDeposited;
       uint blockNumber;
-      bool active;
     }
+
+    struct UserLoan {
+      uint amountBorrowed;
+      uint blockNumber;
+      uint colateralAmount;
+    }
+
     receive() external payable {
 
     }
@@ -58,7 +67,7 @@ contract Bank is IBank {
       if(tokenAddress == token) {
 
         hakBalanceOf[msg.sender] = hakBalanceOf[msg.sender].add(amount);
-        UserDeposit memory deposit = UserDeposit(amount, block.number, true);
+        UserDeposit memory deposit = UserDeposit(amount, block.number);
         hakDepositArray[msg.sender].push(deposit);
 
         emit Deposit(
@@ -68,13 +77,15 @@ contract Bank is IBank {
         );
 
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
+        console.log("deposited amount hak: ", amount);
 
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
 
         ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].add(amount);                        
-        UserDeposit memory deposit = UserDeposit(amount, block.number, true);
+        UserDeposit memory deposit = UserDeposit(amount, block.number);
         ethDepositArray[msg.sender].push(deposit);
 
+        console.log("deposited amount eth: ", amount);
         emit Deposit(
             msg.sender, // account of user who deposited
             token, // token that was deposited
@@ -159,6 +170,20 @@ contract Bank is IBank {
      * @return - the current collateral ratio.
      */
     function borrow(address token, uint256 amount) external override returns (uint256) {
+      require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "incorrect token");
+      // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
+      IPriceOracle oracle = IPriceOracle(oracleAddress);      
+      uint price = oracle.getVirtualPrice(tokenAddress);
+      uint hakBalance = checkBalance(tokenAddress);
+      console.log("hakbalance: ", hakBalance);
+
+      uint hakBalanceInEther = hakBalance.mul(price);
+      uint ethBalance = checkBalance(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+      console.log("ethbalance: ", ethBalance);
+
+      uint result1 = hakBalance.mul(10000).div(amount);
+      console.log("result: ", result1);
+      require(result1 >= 15000, "no collateral deposited");
       return 1;
     }
      
@@ -213,57 +238,13 @@ contract Bank is IBank {
      * @return - the value of the caller's balance with interest, excluding debts.
      */
     function getBalance(address token) view external override returns (uint256) {
-      require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
-      uint total;
-      uint totalInterestAccrued;
-      if(tokenAddress == token) {
-        // return hakBalanceOf[msg.sender];
-        UserDeposit[] memory userDepositArray = hakDepositArray[msg.sender];
-        for (uint256 index = 0; index < userDepositArray.length; index++) {
-          if(userDepositArray[index].amountDeposited == 0) {
-            continue;
-          }
-            total = total.add(userDepositArray[index].amountDeposited);
+      uint balance = checkBalance(token);
 
-            uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-            uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-            uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
-            
-            totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
-
-            // marco el deposito como procesado
-            UserDeposit memory userDeposit = userDepositArray[index];
-            userDeposit.amountDeposited = 0;
-        }
-        return total.add(totalInterestAccrued);
-
-
-      } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
-        UserDeposit[] memory userDepositArray = ethDepositArray[msg.sender];
-        for (uint256 index = 0; index < userDepositArray.length; index++) {
-          if(userDepositArray[index].amountDeposited == 0) {
-            continue;
-          }
-            total = total.add(userDepositArray[index].amountDeposited);
-
-            uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-            uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-            uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
-            
-            totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
-
-            // marco el deposito como procesado
-            UserDeposit memory userDeposit = userDepositArray[index];
-            userDeposit.amountDeposited = 0;
-        }
-        return total.add(totalInterestAccrued);
-      }
-
-      return 1;
+      return balance;
     }
 
 
-    function calculateWithdraw(uint amount, UserDeposit[] storage userDepositArray) internal returns (uint, uint){        
+    function calculateWithdraw(uint amount, UserDeposit[] storage userDepositArray) internal returns (uint, uint){     
         if(amount != 0) {
           // tengo que sacar el amount adecuado, recorriendo cada deposito y calculando el interes sobre cada depósito
           // es probable que tenga que sacar parte de un deposito y dejar depositado el resto del mismo depósito
@@ -296,7 +277,6 @@ contract Bank is IBank {
               // marco el deposito como procesado
               UserDeposit storage userDeposit = userDepositArray[index];
               userDeposit.amountDeposited = 0;
-              // userDeposit.active = false;
             } else {
               // console.log("caso 2");
               // la suma del total de depositos procesados + el proximo deposito procesado
@@ -366,5 +346,55 @@ contract Bank is IBank {
           }
           return (total, totalInterestAccrued);
         }      
-    }
+  }
+  function checkBalance(address token) view internal returns (uint256) {
+
+      require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
+      uint total;
+      uint totalInterestAccrued;
+      if(tokenAddress == token) {
+        
+        UserDeposit[] memory userDepositArray = hakDepositArray[msg.sender];
+        for (uint256 index = 0; index < userDepositArray.length; index++) {
+          if(userDepositArray[index].amountDeposited == 0) {
+            continue;
+          }
+            total = total.add(userDepositArray[index].amountDeposited);
+
+            uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
+            uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
+            uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+            
+            totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+
+            // marco el deposito como procesado
+            UserDeposit memory userDeposit = userDepositArray[index];
+            userDeposit.amountDeposited = 0;
+        }
+        uint totalWithInterest = total.add(totalInterestAccrued);
+        console.log("total: ", totalWithInterest);
+        return totalWithInterest;
+
+
+      } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
+        UserDeposit[] memory userDepositArray = ethDepositArray[msg.sender];
+        for (uint256 index = 0; index < userDepositArray.length; index++) {
+          if(userDepositArray[index].amountDeposited == 0) {
+            continue;
+          }
+            total = total.add(userDepositArray[index].amountDeposited);
+
+            uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
+            uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
+            uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+            
+            totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+
+            // marco el deposito como procesado
+            UserDeposit memory userDeposit = userDepositArray[index];
+            userDeposit.amountDeposited = 0;
+        }
+        return total.add(totalInterestAccrued);
+      }
+  }
 }
