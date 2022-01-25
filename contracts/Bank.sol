@@ -172,29 +172,24 @@ contract Bank is IBank {
     function borrow(address token, uint256 amount) external override returns (uint256) {
       require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "incorrect token");
       // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
-      IPriceOracle oracle = IPriceOracle(oracleAddress);      
+      IPriceOracle oracle = IPriceOracle(oracleAddress);
       uint price = oracle.getVirtualPrice(tokenAddress);
       uint hakBalance = checkBalance(tokenAddress);
-      console.log("hakbalance: ", hakBalance);
+
+      require(hakBalance > 0, "no collateral deposited");
 
       uint hakBalanceInEther = hakBalance.mul(price);
-      console.log("hakBalanceInEther: ", hakBalanceInEther);
       uint ethBalance = checkBalance(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
       uint colateralRatio = hakBalanceInEther.mul(10000).div(amount).div(1000000000000000000);
       
-      console.log("result: ", colateralRatio);
-      require(colateralRatio >= 15000, "no collateral deposited");
+      require(colateralRatio >= 15000, "borrow would exceed collateral ratio");
 
-      // uint colateralAmount = 
-      // UserDeposit memory deposit = UserLoan(amount, block.number, result);
-      // hakDepositArray[msg.sender].push(deposit);
+      UserLoan memory loan = UserLoan(amount,block.number,colateralRatio);
+      UserLoan[] storage userLoanArray = ethLoansArray[msg.sender];
+      userLoanArray.push(loan);
 
-      // struct UserLoan {
-      //   uint amountBorrowed;
-      //   uint blockNumber;
-      //   uint colateralAmount;
-      // }
+      msg.sender.transfer(amount);
 
       emit Borrow(
           msg.sender, // account who borrowed the funds
@@ -247,10 +242,18 @@ contract Bank is IBank {
      *           return MAX_INT.
      */
     function getCollateralRatio(address token, address account) view external override returns (uint256) {
-      uint hakBalance = checkBalance(token);      
-      
+      // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.      
+      uint loansBalance = checkLoans(token);
+      require(loansBalance > 0, "no loans");
 
-      return 1;
+      IPriceOracle oracle = IPriceOracle(oracleAddress);
+      uint price = oracle.getVirtualPrice(tokenAddress);
+      uint hakBalance = checkBalance(tokenAddress);      
+      uint hakBalanceInEther = hakBalance.mul(price);
+      uint colateralRatio = hakBalanceInEther.mul(10000).div(loansBalance).div(1000000000000000000);      
+      require(colateralRatio >= 15000, "borrow would exceed collateral ratio");
+
+      return colateralRatio;
     }
 
     function checkLoans(address token) view internal returns (uint256) {
@@ -268,9 +271,11 @@ contract Bank is IBank {
           totalBorrowed = totalBorrowed.add(userLoansArray[index].amountBorrowed);
 
           uint interest_accrued_per_block = userLoansArray[index].amountBorrowed.mul(5).div(10000);
+          console.log("interest_accrued_per_block: ", interest_accrued_per_block);
           uint delta1 = (block.number.sub(userLoansArray[index].blockNumber));
+          console.log("blocknumber: ", block.number, " userLoansArray[index].blockNumber: ", userLoansArray[index].blockNumber);
           uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
-          
+          console.log("interest_accrued_fixed: ", interest_accrued_fixed);
           totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
 
           // marco el deposito como procesado

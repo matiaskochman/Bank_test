@@ -39,13 +39,13 @@ describe("Bank contract", function () {
   let ethMagic;
 
   async function mineBlocks(blocksToMine) {
-    const startBlock = await ethers.provider.getBlockNumber();
-    const timestamp = (await ethers.provider.getBlock(startBlock)).timestamp;
+    let startBlock = await ethers.provider.getBlockNumber();
+    let timestamp = (await ethers.provider.getBlock(startBlock)).timestamp;
     for (let i = 1; i <= blocksToMine; ++i) {
       await ethers.provider.send("evm_mine", [timestamp + i * 13]);
     }
-    const endBlock = await ethers.provider.getBlockNumber();
-    // expect(endBlock).equals(startBlock + blocksToMine);
+    let endBlock = await ethers.provider.getBlockNumber();
+    expect(endBlock).equals(startBlock + blocksToMine);
   }
 
   beforeEach("deployment setup", async function () {
@@ -61,12 +61,10 @@ describe("Bank contract", function () {
     ethMagic = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
     // provide some tokens/eth to the bank to pay the interest
-    const hakAmount = ethers.utils.parseEther("50.0");
+    let hakAmount = ethers.utils.parseEther("50.0");
     await hak.transfer(bank.address, hakAmount);
-
-    const balance = await hak.connect(acc1).balanceOf(acc1.getAddress());
-    const ethAmount = ethers.utils.parseEther("50.0");
-    await bank.deposit(ethMagic, ethAmount, { value: ethAmount });
+    let ethAmount = ethers.utils.parseEther("50.0");
+    await bank.deposit(ethMagic, ethAmount, {value: ethAmount});
 
     bank1 = bank.connect(acc1);
     bank2 = bank.connect(acc2);
@@ -77,187 +75,113 @@ describe("Bank contract", function () {
     hak3 = hak.connect(acc3);
   });
 
-  describe("deposit", async function () {
-    it("unsupported token", async function () {
-      await expect(
-        bank.deposit(await acc1.getAddress(), 1337)
-      ).to.be.revertedWith("token not supported");
-    });
+  // describe("deposit", async function () {
+  //   it("unsupported token", async function () {
+  //     await expect(bank.deposit(await acc1.getAddress(), 1337)).to.be.revertedWith("token not supported");
+  //   });
 
-    it("deposit hak", async function () {
-      const amount = BigNumber.from(1337);
-      const balanceBefore = await hak.balanceOf(await acc1.getAddress());
-      const balanceHak = await hak.balanceOf(hak.address);
-      await hak.transfer(await acc1.getAddress(), amount);
-      await hak1.approve(bank.address, amount);
-      expect(await hak.allowance(await acc1.getAddress(), bank.address)).equals(
-        amount
-      );
-      await bank1.deposit(hak.address, amount);
-      expect(await bank1.getBalance(hak.address)).equals(amount);
-      expect(await hak.balanceOf(await acc1.getAddress())).equals(0);
-    });
+  //   it("deposit hak", async function () {
+  //     let amount = BigNumber.from(1337);
+  //     let balanceBefore = await hak.balanceOf(await acc1.getAddress());
+  //     await hak.transfer(await acc1.getAddress(), amount);
+  //     await hak1.approve(bank.address, amount);
+  //     expect(await hak.allowance(await acc1.getAddress(), bank.address)).equals(amount);
+  //     await bank1.deposit(hak.address, amount);
+  //     expect(await bank1.getBalance(hak.address)).equals(amount);
+  //     expect(await hak.balanceOf(await acc1.getAddress())).equals(0);
+  //   });
 
-    it("deposit eth", async function () {
-      const amountBefore = await ethers.provider.getBalance(bank.address);
-      const amount = ethers.utils.parseEther("10.0");
-      await bank1.deposit(ethMagic, amount, { value: amount });
-      expect(await ethers.provider.getBalance(bank.address)).equals(
-        amountBefore.add(amount)
-      );
-      expect(await bank1.getBalance(ethMagic)).equals(amount);
-    });
-  });
+  //   it("deposit eth", async function () {
+  //     let amountBefore = await ethers.provider.getBalance(bank.address);
+  //     let amount = ethers.utils.parseEther("10.0");
+  //     await bank1.deposit(ethMagic, amount, {value: amount});
+  //     expect(await ethers.provider.getBalance(bank.address)).equals(amountBefore.add(amount));
+  //     expect(await bank1.getBalance(ethMagic)).equals(amount);
+  //   });
+  // });
 
-  describe("withdraw", async function () {
-    it("unsupported token", async function () {
-      await expect(
-        bank.withdraw(await acc1.getAddress(), 1337)
-      ).to.be.revertedWith("token not supported");
-    });
+  // describe("withdraw", async function () {
+  //   it("unsupported token", async function () {
+  //     await expect(bank.withdraw(await acc1.getAddress(), 1337)).to.be.revertedWith("token not supported");
+  //   });
 
-    it("without balance", async function () {
-      const amount = BigNumber.from(1337);
-      await expect(bank1.withdraw(ethMagic, amount)).to.be.revertedWith(
-        "no balance"
-      );
-      await expect(bank1.withdraw(hak.address, amount)).to.be.revertedWith(
-        "no balance"
-      );
-    });
+  //   it("without balance", async function () {
+  //     let amount = BigNumber.from(1337);
+  //     await expect(bank1.withdraw(ethMagic, amount)).to.be.revertedWith("no balance");
+  //     await expect(bank1.withdraw(hak.address, amount)).to.be.revertedWith("no balance");
+  //   });
 
-    it("balance too low", async function () {
-      const amount = BigNumber.from(10000);
-      await bank1.deposit(ethMagic, amount, { value: amount });
-      await expect(
-        bank1.withdraw(ethMagic, amount.add(1000))
-      ).to.be.revertedWith("amount exceeds balance");
-    });
+  //   it("balance too low", async function () {
+  //     let amount = BigNumber.from(10000);
+  //     await bank1.deposit(ethMagic, amount, {value: amount});
+  //     await expect(bank1.withdraw(ethMagic, amount.add(1000))).to.be.revertedWith("amount exceeds balance");
+  //   });
+  // });
 
-    it("withdraw hak", async function () {
-      // let balanceBefore = await hak.balanceOf(await acc1.getAddress());
-      // let balanceHak = await hak.balanceOf(hak.address);
-      // await hak.transfer(await acc1.getAddress(), amount);
-      // await hak1.approve(bank.address, amount);  100000000000000000000 333333 100000300000000000000 30000000000000000
-      // expect(await hak.allowance(await acc1.getAddress(), bank.address)).equals(amount); 3000000000000000000
-      const total = ethers.utils.parseEther("300.0");
+  // describe("interest", async function () {
+  //   it("100 blocks", async function () {
+  //     let amount = BigNumber.from(10000);
+  //     await bank1.deposit(ethMagic, amount, {value: amount});
+  //     await mineBlocks(99);
+  //     await expect(bank1.withdraw(ethMagic, 0))
+  //       .to.emit(bank, "Withdraw")
+  //       .withArgs(await acc1.getAddress(), ethMagic, 10300);
+  //   });
 
-      await hak.transfer(await acc1.getAddress(), total);
-      await hak1.approve(bank.address, total);
+  //   it("150 blocks", async function () {
+  //     let amount = BigNumber.from(10000);
+  //     await bank1.deposit(ethMagic, amount, {value: amount});
+  //     await mineBlocks(149);
+  //     await expect(bank1.withdraw(ethMagic, 0))
+  //       .to.emit(bank, "Withdraw")
+  //       .withArgs(await acc1.getAddress(), ethMagic, 10450);
+  //       // (1 + 0.03 * 150/100) * 10000
+  //   });
 
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("50"));
+  //   it("250 blocks", async function () {
+  //     let amount = BigNumber.from(10000);
+  //     await bank1.deposit(ethMagic, amount, {value: amount});
+  //     await mineBlocks(249);
+  //     await expect(bank1.withdraw(ethMagic, 0))
+  //       .to.emit(bank, "Withdraw")
+  //       .withArgs(await acc1.getAddress(), ethMagic, 10750);
+  //       // (1 + 0.03 * 250/100) * 10000
+  //   });
 
-      await bank1.deposit(ethMagic, ethers.utils.parseEther("50"), {
-        value: ethers.utils.parseEther("50"),
-      });
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("10.0"));
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("20.0"));
+  //   it("1311 blocks", async function () {
+  //     let amount = BigNumber.from(10000);
+  //     await bank1.deposit(ethMagic, amount, {value: amount});
+  //     await mineBlocks(1310);
+  //     await expect(bank1.withdraw(ethMagic, 0))
+  //       .to.emit(bank, "Withdraw")
+  //       .withArgs(await acc1.getAddress(), ethMagic, 13933);
+  //       // (1 + 0.03 * 1311/100) * 10000
+  //   });
 
-      // await bank1.deposit(hak.address, ethers.utils.parseEther("150"));
-      // await bank1.deposit(hak.address, amount3);
-      // expect(await bank1.getBalance(hak.address)).equals(total);
+  //   it("200 blocks in 2 steps", async function () {
+  //     let amount = BigNumber.from(10000);
+  //     // deposit once, wait 100 blocks and check balance
+  //     await bank1.deposit(ethMagic, amount, {value: amount});
+  //     await mineBlocks(100);
+  //     expect(await bank1.getBalance(ethMagic)).equals(10300);
 
-      // expect(await hak.balanceOf(await acc1.getAddress())).equals(0);
-      // await mineBlocks(99);
-      // bank1.withdraw(hak.address, ethers.utils.parseEther("145.0"));
-      // await mineBlocks(99);
-      // bank1.withdraw(hak.address, ethers.utils.parseEther("5.0"));
-      // await mineBlocks(99);
-      // bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"));
-      // await mineBlocks(99);
-      // bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"));
-      // await mineBlocks(99);
-      // bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"));
-      // await mineBlocks(99);
-      await mineBlocks(99);
-      console.log("balance: ", await bank1.getBalance(ethMagic));
-      bank1.withdraw(ethMagic, ethers.utils.parseEther("50.0"));
-
-      const balance = await hak1.balanceOf(acc1.address);
-      // console.log("balance of hak: ", balance.toString());
-
-      const ethBalance = await ethers.provider.getBalance(acc1.address);
-      // console.log("balance of eth: ", ethBalance);
-      // await expect(
-      //   bank1.withdraw(hak.address, ethers.utils.parseEther("50.0"))
-      // ).to.be.revertedWith("account is empty");
-    });
-  });
-
-  describe("interest", async function () {
-    it("100 blocks", async function () {
-      let amount = BigNumber.from(10000);
-      await bank1.deposit(ethMagic, amount, {value: amount});
-      await mineBlocks(99);
-      await expect(bank1.withdraw(ethMagic, 0))
-        .to.emit(bank, "Withdraw")
-        .withArgs(await acc1.getAddress(), ethMagic, 10300);
-    });
-
-    it("150 blocks", async function () {
-      let amount = BigNumber.from(10000);
-      await bank1.deposit(ethMagic, amount, {value: amount});
-      await mineBlocks(149);
-      await expect(bank1.withdraw(ethMagic, 0))
-        .to.emit(bank, "Withdraw")
-        .withArgs(await acc1.getAddress(), ethMagic, 10450);
-        // (1 + 0.03 * 150/100) * 10000
-    });
-
-    it("250 blocks", async function () {
-      let amount = BigNumber.from(10000);
-      await bank1.deposit(ethMagic, amount, {value: amount});
-      await mineBlocks(249);
-      await expect(bank1.withdraw(ethMagic, 0))
-        .to.emit(bank, "Withdraw")
-        .withArgs(await acc1.getAddress(), ethMagic, 10750);
-        // (1 + 0.03 * 250/100) * 10000
-    });
-
-    it("1311 blocks", async function () {
-      let amount = BigNumber.from(10000);
-      await bank1.deposit(ethMagic, amount, {value: amount});
-      await mineBlocks(1310);
-      await expect(bank1.withdraw(ethMagic, 0))
-        .to.emit(bank, "Withdraw")
-        .withArgs(await acc1.getAddress(), ethMagic, 13933);
-        // (1 + 0.03 * 1311/100) * 10000
-    });
-
-    it("200 blocks in 2 steps", async function () {
-      let amount = BigNumber.from(10000);
-      // deposit once, wait 100 blocks and check balance
-      await bank1.deposit(ethMagic, amount, {value: amount});
-      await mineBlocks(100);
-      expect(await bank1.getBalance(ethMagic)).equals(10300);
-
-      // deposit again to trigger account update, wait 100 blocks and withdraw all
-      await bank1.deposit(ethMagic, amount, {value: amount});
-      await mineBlocks(99);
-      await expect(bank1.withdraw(ethMagic, 0))
-        .to.emit(bank, "Withdraw")
-        .withArgs(await acc1.getAddress(), ethMagic,
-            10300 // initial deposit + 100 block interest reward
-          + 3     // the 1 block where additional funds are deposited
-          + 10600 // second deposit + 100 block reward on 20k
-        );
-    });
-  });
+  //     // deposit again to trigger account update, wait 100 blocks and withdraw all
+  //     await bank1.deposit(ethMagic, amount, {value: amount});
+  //     await mineBlocks(99);
+  //     await expect(bank1.withdraw(ethMagic, 0))
+  //       .to.emit(bank, "Withdraw")
+  //       .withArgs(await acc1.getAddress(), ethMagic,
+  //           10300 // initial deposit + 100 block interest reward
+  //         + 3     // the 1 block where additional funds are deposited
+  //         + 10600 // second deposit + 100 block reward on 20k
+  //       );
+  //   });
+  // });
 
   describe("borrow", async function () {
     it("no collateral", async function () {
       let amount = BigNumber.from(1000);
-      await expect(bank.borrow(ethMagic, amount)).to.be.revertedWith("no collateral deposited");
+      await expect(bank1.borrow(ethMagic, amount)).to.be.revertedWith("no collateral deposited");
     });
 
     it("basic borrow", async function () {
@@ -266,14 +190,6 @@ describe("Bank contract", function () {
       await hak.transfer(await acc1.getAddress(), collateralAmount);
       await hak1.approve(bank.address, collateralAmount);
       await bank1.deposit(hak.address, collateralAmount);
-
-      // const ethBalance = await bank1.getBalance(ethMagic);
-      // const hakBalance = await bank1.getBalance(hak.address);
-
-      // console.log("ethbalance: ", ethBalance);
-      // console.log("hakbalance: ", hakBalance);
-      // bank1.borrow(ethMagic, borrowAmount);
-
       await expect(bank1.borrow(ethMagic, borrowAmount))
         .to.emit(bank, "Borrow")
         .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
@@ -281,33 +197,33 @@ describe("Bank contract", function () {
         .equals(15004);
     });
 
-    // it("exceed borrow single borrow", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   let borrowAmount = ethers.utils.parseEther("12.0");
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   await expect(bank1.borrow(ethMagic, borrowAmount))
-    //     .to.be.revertedWith("borrow would exceed collateral ratio");
-    // });
+    it("exceed borrow single borrow", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      let borrowAmount = ethers.utils.parseEther("12.0");
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+      await expect(bank1.borrow(ethMagic, borrowAmount))
+        .to.be.revertedWith("borrow would exceed collateral ratio");
+    });
 
-    // it("exceed borrow multiple borrows", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   let borrowAmount = ethers.utils.parseEther("9.0");
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   await expect(bank1.borrow(ethMagic, borrowAmount))
-    //     .to.emit(bank, "Borrow")
-    //     .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 16671);
-    //   expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
-    //     .equals(16671);
+    it("exceed borrow multiple borrows", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      let borrowAmount = ethers.utils.parseEther("9.0");
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+      await expect(bank1.borrow(ethMagic, borrowAmount))
+        .to.emit(bank, "Borrow")
+        .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 16671);
+      expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
+        .equals(16671);
 
-    //   await expect(bank1.borrow(ethMagic, borrowAmount))
-    //     .to.be.revertedWith("borrow would exceed collateral ratio");
-    //   expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
-    //     .equals(16668);
-    // });
+      await expect(bank1.borrow(ethMagic, borrowAmount))
+        .to.be.revertedWith("borrow would exceed collateral ratio");
+      expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
+        .equals(16668);
+    });
 
     // it("max borrow", async function () {
     //   let collateralAmount = ethers.utils.parseEther("15.0");
