@@ -77,7 +77,6 @@ contract Bank is IBank {
         );
 
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
-        console.log("deposited amount hak: ", amount);
 
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
 
@@ -85,7 +84,6 @@ contract Bank is IBank {
         UserDeposit memory deposit = UserDeposit(amount, block.number);
         ethDepositArray[msg.sender].push(deposit);
 
-        console.log("deposited amount eth: ", amount);
         emit Deposit(
             msg.sender, // account of user who deposited
             token, // token that was deposited
@@ -209,7 +207,6 @@ contract Bank is IBank {
       } else if(amount == 0){
         uint toBorrow = hakBalance.mul(10).div(15).sub(loansBalance);
         uint colateralRatio = hakBalanceInEther.mul(10000).div(amount.add(loansBalance.add(toBorrow))).div(1000000000000000000);
-        console.log("toborrow: ", toBorrow, " colateralRatio: ", colateralRatio);
 
         UserLoan memory loan = UserLoan(toBorrow,block.number,colateralRatio);
         UserLoan[] storage userLoanArray = ethLoansArray[msg.sender];
@@ -223,7 +220,6 @@ contract Bank is IBank {
         );
 
         msg.sender.transfer(toBorrow);
-
         return colateralRatio;
       }
     }
@@ -298,11 +294,8 @@ contract Bank is IBank {
           totalBorrowed = totalBorrowed.add(userLoansArray[index].amountBorrowed);
 
           uint interest_accrued_per_block = userLoansArray[index].amountBorrowed.mul(5).div(10000);
-          console.log("interest_accrued_per_block: ", interest_accrued_per_block);
           uint delta1 = (block.number.sub(userLoansArray[index].blockNumber));
-          console.log("blocknumber: ", block.number, " userLoansArray[index].blockNumber: ", userLoansArray[index].blockNumber);
           uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
-          console.log("interest_accrued_fixed: ", interest_accrued_fixed);
           totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
 
           // marco el deposito como procesado

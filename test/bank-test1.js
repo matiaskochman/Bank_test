@@ -240,51 +240,51 @@ describe("Bank contract", function () {
         .equals(15000);
     });
 
-    // it("multiple borrows", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   let borrowAmount = ethers.utils.parseEther("3.0");
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   let collateralRatios = [50015, 25008, 16673];
-    //   for (let i = 0; i < 3; ++i) {
-    //     await expect(bank1.borrow(ethMagic, borrowAmount))
-    //       .to.emit(bank, "Borrow")
-    //       .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, collateralRatios[i]);
-    //   }
-    //   expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
-    //     .equals(collateralRatios[collateralRatios.length - 1]);
-    // });
+    it("multiple borrows", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      let borrowAmount = ethers.utils.parseEther("3.0");
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+      let collateralRatios = [50015, 25008, 16673];
+      for (let i = 0; i < 3; ++i) {
+        await expect(bank1.borrow(ethMagic, borrowAmount))
+          .to.emit(bank, "Borrow")
+          .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, collateralRatios[i]);
+      }
+      expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
+        .equals(collateralRatios[collateralRatios.length - 1]);
+    });
 
-    // it("multiple borrows + max borrow", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   let borrowAmount = ethers.utils.parseEther("3.0");
-    //   let ethBefore = await acc1.getBalance();
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   let collateralRatios = [50015, 25008, 16673];
-    //   for (let i = 0; i < 3; ++i) {
-    //     await expect(bank1.borrow(ethMagic, borrowAmount))
-    //       .to.emit(bank, "Borrow")
-    //       .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, collateralRatios[i]);
-    //   }
-    //   expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
-    //     .equals(collateralRatios[collateralRatios.length - 1]);
+    it("multiple borrows + max borrow", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      let borrowAmount = ethers.utils.parseEther("3.0");
+      let ethBefore = await acc1.getBalance();
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+      let collateralRatios = [50015, 25008, 16673];
+      for (let i = 0; i < 3; ++i) {
+        await expect(bank1.borrow(ethMagic, borrowAmount))
+          .to.emit(bank, "Borrow")
+          .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, collateralRatios[i]);
+      }
+      expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
+        .equals(collateralRatios[collateralRatios.length - 1]);
 
-    //   // now borrow everything that's left
-    //   await expect(bank1.borrow(ethMagic, 0))
-    //     .to.emit(bank, "Borrow");
-    //   expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
-    //     .equals(15000);
+      // now borrow everything that's left
+      await expect(bank1.borrow(ethMagic, 0))
+        .to.emit(bank, "Borrow");
+      expect(await bank1.getCollateralRatio(hak.address, await acc1.getAddress()))
+        .equals(15000);
 
-    //   // make sure we (roughly) received the expected amount of eth
-    //   let ethAfter = await acc1.getBalance();
-    //   let ethBorrowed = ethAfter.sub(ethBefore);
-    //   expect(ethBorrowed).to.be.gte(ethers.utils.parseEther("10.0"));
-    //   expect(ethBorrowed).to.be.lte(
-    //     ethers.utils.parseEther("10.0").add(ethers.utils.parseEther("0.005")));
-    // });
+      // make sure we (roughly) received the expected amount of eth
+      let ethAfter = await acc1.getBalance();
+      let ethBorrowed = ethAfter.sub(ethBefore);
+      expect(ethBorrowed).to.be.gte(ethers.utils.parseEther("10.0"));
+      expect(ethBorrowed).to.be.lte(
+        ethers.utils.parseEther("10.0").add(ethers.utils.parseEther("0.005")));
+    });
 
   });
 
