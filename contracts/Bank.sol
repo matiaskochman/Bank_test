@@ -205,6 +205,9 @@ contract Bank is IBank {
       return colateralRatio;
 
       } else if(amount == 0){
+
+        // [(deposited + deposit interests) * 10000 / (borrowed + borrowed interests) + toBorrow] >= 15000
+ 
         uint toBorrow = hakBalance.mul(10).div(15).sub(loansBalance);
         uint colateralRatio = hakBalanceInEther.mul(10000).div(amount.add(loansBalance.add(toBorrow))).div(1000000000000000000);
 
@@ -238,6 +241,10 @@ contract Bank is IBank {
      * @return - the amount still left to pay for this loan, excluding interest.
      */
     function repay(address token, uint256 amount) payable external override returns (uint256) {
+      require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "token not supported");
+      uint loansBalance = checkLoans(token);
+      require(loansBalance > 0, "nothing to repay");
+
       return 1;
     }
      
@@ -267,8 +274,6 @@ contract Bank is IBank {
     function getCollateralRatio(address token, address account) view external override returns (uint256) {
       // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.      
       uint loansBalance = checkLoans(token);
-      
-
       IPriceOracle oracle = IPriceOracle(oracleAddress);
       uint price = oracle.getVirtualPrice(tokenAddress);
       uint hakBalance = checkBalance(tokenAddress);      
@@ -294,8 +299,8 @@ contract Bank is IBank {
           totalBorrowed = totalBorrowed.add(userLoansArray[index].amountBorrowed);
 
           uint interest_accrued_per_block = userLoansArray[index].amountBorrowed.mul(5).div(10000);
-          uint delta1 = (block.number.sub(userLoansArray[index].blockNumber));
-          uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+          uint blockDelta = (block.number.sub(userLoansArray[index].blockNumber));
+          uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
           totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
 
           // marco el deposito como procesado
@@ -333,19 +338,14 @@ contract Bank is IBank {
             if(userDepositArray[index].amountDeposited == 0) {
               continue;
             }
-            // console.log("deposit number: ", index);
-            // console.log("deposit amount: ", userDepositArray[index].amountDeposited.div(1000000000000000000));
             uint val = total.add(userDepositArray[index].amountDeposited);
 
             if((val <= amount)) {              
-              // console.log("caso 1");
-              // la suma del total de depositos procesados + el proximo deposito procesado
-              // es menor al total que quiero retirar
               total = total.add(userDepositArray[index].amountDeposited);
 
               uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-              uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-              uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+              uint blockDelta = (block.number.sub(userDepositArray[index].blockNumber));
+              uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
               
               totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
 
@@ -353,53 +353,28 @@ contract Bank is IBank {
               UserDeposit storage userDeposit = userDepositArray[index];
               userDeposit.amountDeposited = 0;
             } else {
-              // console.log("caso 2");
-              // la suma del total de depositos procesados + el proximo deposito procesado
-              // es mayor al total que quiero retirar.
-              // Tengo que procesar parte del próximo deposito y dejar lo que sobra depositado.
               uint diff = amount.sub(total);
-
-              // uint aux = amount.sub(total);
               total = total.add(diff);
               UserDeposit storage userDeposit = userDepositArray[index];
 
               userDeposit.amountDeposited = userDeposit.amountDeposited.sub(diff);
 
               uint256 interest_accrued_per_block = diff.mul(3).div(10000);
-              uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-              uint256 interest_accrued_fixed = delta1 * interest_accrued_per_block;
+              uint blockDelta = (block.number.sub(userDepositArray[index].blockNumber));
+              uint256 interest_accrued_fixed = blockDelta * interest_accrued_per_block;
               
               totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);
 
             }
-            // console.log("total: ", total.div(1000000000000000000));
-            // console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
-            // console.log("left to calculate: ", amount.sub(total).div(1000000000000000000));
-            // console.log("");
             if(amount == total) {
               // marco el ultipo deposito parcialmente procesado como procesado
               break;
             }
           }
-          // if(total>0) {
-          //   console.log(" ");
-          //   console.log("end of iteration");
-          //   console.log("total: ", total.div(1000000000000000000));
-          //   console.log("total interest: ", totalInterestAccrued.div(1000000000000000));
-          //   console.log("111111111111111111");
-          //   console.log(" ");
-          //   console.log(" ");
-          //   console.log(" ");
-          //   console.log(" ");
-          //   console.log(" ");
-            
-          // }
-          // uint totalAmountToTransfer = total.add(totalInterestAccrued);
           return (total, totalInterestAccrued);
-          // IERC20(tokenAddress).approve(address(this), totalAmountToTransfer);
-          // IERC20(tokenAddress).transferFrom(address(this), msg.sender, totalAmountToTransfer);
+
         } else {
-          // console.log("retiramos todo");
+          // retiramos todo
           uint total;
           uint totalInterestAccrued;
 
@@ -410,8 +385,8 @@ contract Bank is IBank {
               total = total.add(userDepositArray[index].amountDeposited);
 
               uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-              uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-              uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+              uint blockDelta = (block.number.sub(userDepositArray[index].blockNumber));
+              uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
               
               totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
 
@@ -442,8 +417,8 @@ contract Bank is IBank {
           total = total.add(userDepositArray[index].amountDeposited);
 
           uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-          uint delta1 = (block.number.sub(userDepositArray[index].blockNumber));
-          uint interest_accrued_fixed = delta1 * interest_accrued_per_block;
+          uint blockDelta = (block.number.sub(userDepositArray[index].blockNumber));
+          uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
           
           totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
 
