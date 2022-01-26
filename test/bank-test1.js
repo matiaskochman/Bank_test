@@ -338,7 +338,7 @@ describe("Bank contract", function () {
       await expect(bank1.borrow(ethMagic, borrowAmount))
         .to.emit(bank, "Borrow")
         .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
-        
+
       let amountToRepay = ethers.utils.parseEther("4.0");
       let remainingDebt = await expect(bank1.repay(ethMagic, amountToRepay, { value: amountToRepay}))
         .to.emit(bank, "Repay")
@@ -347,6 +347,7 @@ describe("Bank contract", function () {
         .add(5000000000000000)); // interest for 1 block)
     });
   });
+  // 6004998500250124812  6005000000000000000  3998000999500249875  1999000499750124
 
   // describe("liquidate", async function () {
   //   it ("liquidates a different token than HAK", async function () {

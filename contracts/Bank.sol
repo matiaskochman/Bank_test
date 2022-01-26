@@ -108,9 +108,6 @@ contract Bank is IBank {
      */
     function withdraw(address token, uint256 amount) external override returns (uint256) {
       require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
-      // console.log("111111111111111111");
-      // console.log("withdraw executing amount: ", amount.div(1000000000000000000));
-      // console.log("");
 
       if((tokenAddress == token)) {
 
@@ -125,12 +122,12 @@ contract Bank is IBank {
         uint total = amountDepositedToTransfer.add(interestAccrued);
         IERC20(tokenAddress).approve(address(this), total);
         IERC20(tokenAddress).transferFrom(address(this), msg.sender, total);
+
         emit Withdraw(
           msg.sender, // account of user who withdrew funds
           token, // token that was withdrawn
           total // amount of token that was withdrawn
         );
-
 
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
         require(0 < ethBalanceOf[msg.sender], "no balance");
@@ -141,7 +138,7 @@ contract Bank is IBank {
         uint total = amountDepositedToTransfer.add(interestAccrued);
 
         ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].sub(amountDepositedToTransfer);
-        // console.log("total eth: ", total.div(1000000000000000));
+
         emit Withdraw(
           msg.sender, // account of user who withdrew funds
           token, // token that was withdrawn
@@ -150,7 +147,6 @@ contract Bank is IBank {
 
         (bool sent, bytes memory data) = payable(msg.sender).call{value: total}("");
         require(sent, "Failed to send Ether");
-        // msg.sender.transfer(total);
       }
       
     }
@@ -182,7 +178,6 @@ contract Bank is IBank {
       uint hakPrice = oracle.getVirtualPrice(tokenAddress);
 
       uint hakBalanceInEther = hakBalance.mul(hakPrice);
-      // uint ethBalance = checkBalance(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
       if(amount > 0) {
       // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
@@ -259,10 +254,10 @@ contract Bank is IBank {
         remainingDebt = totalDebtExcludingInterest.add(totalInterest);
       } else {
 
-        require(remainingDebt <= msg.value, "msg.value < amount to repay");
+        require(amount <= msg.value, "msg.value < amount to repay");
         processDebt(amount,ethLoansArray[msg.sender]);
         (totalDebtExcludingInterest, totalInterest) = calculateRemainingDebt(ethLoansArray[msg.sender]);
-        remainingDebt = totalDebtExcludingInterest.add(totalInterest);
+        remainingDebt = totalDebtExcludingInterest;
 
       }
 
@@ -355,33 +350,25 @@ contract Bank is IBank {
       uint totalToRepay = amount;
       uint totalInterestToPay;
 
-      // X = amount to repay
-      // Y = part without interest
-      // Z = interest
-
-      // X = Y + Z
-      // Z = (Y * 5) * (amountOfBlocks) / 10000
-      // X = Y + (Y * 5 * amountOfBlocks) / 10000
 
       if(amount >0 ) {
         for (uint256 index = 0; index < userLoanArray.length; index++) {
           if(userLoanArray[index].amountBorrowed == 0) {
             continue;
           }
+
           uint blockDelta = (block.number.sub(userLoanArray[index].blockNumber));
-          uint amountWithoutInterest = amount.mul(10000).div(blockDelta.mul(10005));
-          uint interest = amountWithoutInterest.mul(blockDelta.mul(5)).div(10000);
+          uint interest_accrued_per_block = userLoanArray[index].amountBorrowed.mul(5).div(10000);
+          uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
 
-          console.log("amount: ", amount);
-          console.log("amountWithNoInterest: ", amountWithoutInterest);
-          console.log("interest: ", interest);
-          totalInterestToPay = totalInterestToPay.add(interest);
-          totalToRepay = totalToRepay.sub(amountWithoutInterest);
+          uint debtIncludingInterest = userLoanArray[index].amountBorrowed.add(interest_accrued_fixed);
 
-          if(amountWithoutInterest >= userLoanArray[index].amountBorrowed) {
+          if(totalToRepay >= debtIncludingInterest) {
+            totalToRepay = totalToRepay.sub(debtIncludingInterest);
             userLoanArray[index].amountBorrowed = 0;
           } else {
-            userLoanArray[index].amountBorrowed = userLoanArray[index].amountBorrowed.sub(amountWithoutInterest);
+            userLoanArray[index].amountBorrowed = debtIncludingInterest.sub(totalToRepay);
+            break;
           }
 
           if(totalToRepay == 0) {
@@ -405,13 +392,15 @@ contract Bank is IBank {
         if(userLoanArray[index].amountBorrowed == 0) {
           continue;
         }
+
         uint blockDelta = (block.number.sub(userLoanArray[index].blockNumber));
-        uint amountWithoutInterest = userLoanArray[index].amountBorrowed.mul(10000).div(blockDelta.mul(10005));
-        uint interest = amountWithoutInterest.mul(blockDelta.mul(5)).div(10000);
+        uint interest_accrued_per_block = userLoanArray[index].amountBorrowed.mul(5).div(10000);
+        uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
 
         totalDebtLeftExludingInterest = totalDebtLeftExludingInterest.add(userLoanArray[index].amountBorrowed);
-        totalInterest = totalInterest.add(interest);
+        totalInterest = totalInterest.add(interest_accrued_fixed);
       }
+
       return (totalDebtLeftExludingInterest, totalInterest);
     }
 
