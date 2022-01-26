@@ -77,7 +77,6 @@ contract Bank is IBank {
         );
 
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
-
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
 
         ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].add(amount);                        
@@ -167,12 +166,12 @@ contract Bank is IBank {
       require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "incorrect token");
       require(amount >= 0 , "invalid input");
 
-      uint hakBalance = checkBalance(tokenAddress);
+      uint hakBalance = checkBalance(tokenAddress, msg.sender);
       require(hakBalance > 0, "no collateral deposited");
 
       UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
       // the sum of loans of user + interest
-      uint loansBalance = checkLoans(token, userLoansArray);
+      uint loansBalance = checkLoans(token, msg.sender);
 
       IPriceOracle oracle = IPriceOracle(oracleAddress);
       uint hakPrice = oracle.getVirtualPrice(tokenAddress);
@@ -181,11 +180,11 @@ contract Bank is IBank {
 
       if(amount > 0) {
       // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
-      uint colateralRatio = hakBalanceInEther.mul(10000).div(amount.add(loansBalance)).div(1000000000000000000);
+      uint collateralRatio = hakBalanceInEther.mul(10000).div(amount.add(loansBalance)).div(1000000000000000000);
       
-      require(colateralRatio >= 15000, "borrow would exceed collateral ratio");
+      require(collateralRatio >= 15000, "borrow would exceed collateral ratio");
 
-      UserLoan memory loan = UserLoan(amount,block.number,colateralRatio);
+      UserLoan memory loan = UserLoan(amount,block.number,collateralRatio);
       UserLoan[] storage userLoanArray = ethLoansArray[msg.sender];
       userLoanArray.push(loan);
 
@@ -193,20 +192,20 @@ contract Bank is IBank {
           msg.sender, // account who borrowed the funds
           token, // token that was borrowed
           amount, // amount of token that was borrowed
-          colateralRatio // collateral ratio for the account, after the borrow
+          collateralRatio // collateral ratio for the account, after the borrow
       );
 
       msg.sender.transfer(amount);
-      return colateralRatio;
+      return collateralRatio;
 
       } else if(amount == 0){
 
         // [(deposited + deposit interests) * 10000 / (borrowed + borrowed interests) + toBorrow] >= 15000
  
         uint toBorrow = hakBalance.mul(10).div(15).sub(loansBalance);
-        uint colateralRatio = hakBalanceInEther.mul(10000).div(amount.add(loansBalance.add(toBorrow))).div(1000000000000000000);
+        uint collateralRatio = hakBalanceInEther.mul(10000).div(amount.add(loansBalance.add(toBorrow))).div(1000000000000000000);
 
-        UserLoan memory loan = UserLoan(toBorrow,block.number,colateralRatio);
+        UserLoan memory loan = UserLoan(toBorrow,block.number,collateralRatio);
         UserLoan[] storage userLoanArray = ethLoansArray[msg.sender];
         userLoanArray.push(loan);
 
@@ -214,11 +213,11 @@ contract Bank is IBank {
             msg.sender, // account who borrowed the funds
             token, // token that was borrowed
             toBorrow, // amount of token that was borrowed
-            colateralRatio // collateral ratio for the account, after the borrow
+            collateralRatio // collateral ratio for the account, after the borrow
         );
 
         msg.sender.transfer(toBorrow);
-        return colateralRatio;
+        return collateralRatio;
       }
     }
      
@@ -237,8 +236,7 @@ contract Bank is IBank {
      */
     function repay(address token, uint256 amount) payable external override returns (uint256) {
       require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "token not supported");
-      UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
-      uint loansBalance = checkLoans(token, userLoansArray);
+      uint loansBalance = checkLoans(token, msg.sender);
       require(loansBalance > 0, "nothing to repay");
       
       uint totalDebtExcludingInterest;
@@ -279,6 +277,15 @@ contract Bank is IBank {
      * @return - true if the liquidation was successful, otherwise revert.
      */
     function liquidate(address token, address account) payable external override returns (bool) {
+      require((tokenAddress == token), "token not supported");
+      require(account != msg.sender, "cannot liquidate own position");
+
+      uint collateralRatio = checkCollateralRatio(token, account);
+
+      console.log("collateralRatio: ", collateralRatio);
+
+      require(collateralRatio < 15000, "healty position");
+
       return true;
     }
  
@@ -295,26 +302,37 @@ contract Bank is IBank {
      *           return MAX_INT.
      */
     function getCollateralRatio(address token, address account) view external override returns (uint256) {
-      // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
-      UserLoan[] memory userLoansArray = ethLoansArray[account];  
-      uint loansBalance = checkLoans(token, userLoansArray);
-      IPriceOracle oracle = IPriceOracle(oracleAddress);
-      uint price = oracle.getVirtualPrice(tokenAddress);
-      uint hakBalance = checkBalance(tokenAddress);      
-      uint hakBalanceInEther = hakBalance.mul(price);
-      uint colateralRatio = hakBalanceInEther.mul(10000).div(loansBalance).div(1000000000000000000);      
-      require(colateralRatio >= 15000, "borrow would exceed collateral ratio");
+      uint256 MAX_INT = type(uint256).max;
+      uint loansBalance = checkLoans(token, account);
 
-      return colateralRatio;
+      if(loansBalance > 0){
+        uint result = checkCollateralRatio(token, account);
+        return result;
+      } else {
+        return MAX_INT;
+      }
     }
 
-    function checkLoans(address token, UserLoan[] memory userLoansArray) view internal returns (uint256) {
+    function checkCollateralRatio(address token, address account) view internal returns (uint256) {
+      // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
+      uint loansBalance = checkLoans(token, account);
+      console.log("loansBalance: ", loansBalance);
+      IPriceOracle oracle = IPriceOracle(oracleAddress);
+      uint price = oracle.getVirtualPrice(tokenAddress);
+      uint hakBalance = checkBalance(tokenAddress,account);
+      console.log("hakBalance: ", hakBalance);
+      uint hakBalanceInEther = hakBalance.mul(price);
+      console.log("hakBalanceInEther: ", hakBalanceInEther);
+      uint collateralRatio = hakBalanceInEther.mul(10000).div(loansBalance).div(1000000000000000000);      
+
+      return collateralRatio;
+    }
+
+    function checkLoans(address token, address account) view internal returns (uint256) {
       require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
       uint total;
-      uint totalInterestAccrued;
-      
-      // UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
-
+      uint totalInterestAccrued;      
+      UserLoan[] memory userLoansArray = ethLoansArray[account];
       uint totalBorrowed;
       for (uint256 index = 0; index < userLoansArray.length; index++) {
         if(userLoansArray[index].amountBorrowed == 0) {
@@ -342,7 +360,7 @@ contract Bank is IBank {
      * @return - the value of the caller's balance with interest, excluding debts.
      */
     function getBalance(address token) view external override returns (uint256) {
-      uint balance = checkBalance(token);
+      uint balance = checkBalance(token, msg.sender);
 
       return balance;
     }
@@ -481,35 +499,36 @@ contract Bank is IBank {
           return (total, totalInterestAccrued);
         }      
   }
-  function checkBalance(address token) view internal returns (uint256) {
-
+  function checkBalance(address token, address account) view internal returns (uint256) {
       require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
       uint total;
       uint totalInterestAccrued;
       UserDeposit[] memory userDepositArray;
 
       if(tokenAddress == token) {
-         userDepositArray = hakDepositArray[msg.sender];
+         userDepositArray = hakDepositArray[account];
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
-        userDepositArray = ethDepositArray[msg.sender];
+        userDepositArray = ethDepositArray[account];
       }
 
       for (uint256 index = 0; index < userDepositArray.length; index++) {
         if(userDepositArray[index].amountDeposited == 0) {
           continue;
         }
-          total = total.add(userDepositArray[index].amountDeposited);
+        total = total.add(userDepositArray[index].amountDeposited);
 
-          uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
-          uint blockDelta = (block.number.sub(userDepositArray[index].blockNumber));
-          uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
-          
-          totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
+        uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
+        uint blockDelta = (block.number.sub(userDepositArray[index].blockNumber));
+        uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
+        
+        totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
 
-          // marco el deposito como procesado
-          UserDeposit memory userDeposit = userDepositArray[index];
-          userDeposit.amountDeposited = 0;
+        // marco el deposito como procesado
+        // UserDeposit memory userDeposit = userDepositArray[index];
+        // userDeposit.amountDeposited = 0;
       }
-      return total.add(totalInterestAccrued);
+      uint returnValue = total.add(totalInterestAccrued);
+      console.log("returnValue: ", returnValue);
+      return returnValue;
   }
 }
