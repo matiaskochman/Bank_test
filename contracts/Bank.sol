@@ -65,7 +65,6 @@ contract Bank is IBank {
       require(amount > 0, "amount should be greater than 0");
 
       if(tokenAddress == token) {
-
         hakBalanceOf[msg.sender] = hakBalanceOf[msg.sender].add(amount);
         UserDeposit memory deposit = UserDeposit(amount, block.number);
         hakDepositArray[msg.sender].push(deposit);
@@ -166,14 +165,9 @@ contract Bank is IBank {
       require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "incorrect token");
       require(amount >= 0 , "invalid input");
 
-      (uint totalExcludingInterest, uint interest) = checkBalance(token, msg.sender);
-
-      console.log("totalExcludingInterest: ", totalExcludingInterest);
-
+      (uint totalExcludingInterest, uint interest) = checkBalance(tokenAddress, msg.sender);
       uint hakBalance = totalExcludingInterest.add(interest);
 
-      console.log("totalExcludingInterest: ", totalExcludingInterest);
-      console.log("interest: ", interest);
       require(hakBalance > 0, "no collateral deposited");
 
       UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
@@ -211,7 +205,6 @@ contract Bank is IBank {
         // [(deposited + deposit interests) * 10000 / (borrowed + borrowed interests) + toBorrow] >= 15000
  
         uint toBorrow = hakBalance.mul(10).div(15).sub(loansBalance);
-        console.log("paso1");
         
         uint collateralRatio = hakBalanceInEther.mul(10000).div(loansBalance.add(toBorrow)).div(1000000000000000000);
 
@@ -299,18 +292,12 @@ contract Bank is IBank {
       
       (uint totalExcludingInterest, uint interest) = checkBalance(token, account);
 
-      console.log("totalExcludingInterest: ", totalExcludingInterest);
-
       uint collateral = totalExcludingInterest.add(interest);
       uint hakBalance = totalExcludingInterest.add(interest);
 
       uint loansBalance = checkLoans(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, account);
 
       (uint totalDebtExcludingInterest, uint totalInterest) = calculateRemainingDebt(ethLoansArray[account]);
-
-      console.log("collateral: ", collateral);
-      console.log("loansBalance: ", loansBalance);
-      
 
       processDebt(0, userLoanArray);
       
@@ -320,7 +307,7 @@ contract Bank is IBank {
           account, // account which is liquidated
           token, // token which was used as collateral
                                           // for the loan (not the token borrowed)
-          collateral, // amount of collateral token which is sent to the liquidator
+          totalExcludingInterest, // amount of collateral token which is sent to the liquidator
           10 // amount of borrowed token that is sent back to the
                                 // liquidator in case the amount that the liquidator
                                 // sent for liquidation was higher than the debt of the liquidated account
@@ -363,8 +350,6 @@ contract Bank is IBank {
       uint price = oracle.getVirtualPrice(tokenAddress);
       (uint totalExcludingInterest, uint interest) = checkBalance(token, account);
 
-      console.log("totalExcludingInterest: ", totalExcludingInterest);
-
       uint hakBalance = totalExcludingInterest.add(interest);
 
       uint hakBalanceInEther = hakBalance.mul(price);
@@ -406,8 +391,6 @@ contract Bank is IBank {
      */
     function getBalance(address token) view external override returns (uint) {
       (uint totalExcludingInterest, uint interest) = checkBalance(token, msg.sender);
-
-      console.log("totalExcludingInterest: ", totalExcludingInterest);
 
       uint balance = totalExcludingInterest.add(interest);
       return balance;
@@ -570,8 +553,6 @@ contract Bank is IBank {
         uint interest_accrued_fixed = blockDelta * interest_accrued_per_block;
         
         totalInterestAccrued = totalInterestAccrued.add(interest_accrued_fixed);              
-        console.log("total: ", total);
-        console.log("interest_accrued_fixed: ", interest_accrued_fixed);
         // marco el deposito como procesado
         // UserDeposit memory userDeposit = userDepositArray[index];
         // userDeposit.amountDeposited = 0;
