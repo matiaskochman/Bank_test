@@ -170,9 +170,9 @@ contract Bank is IBank {
       uint hakBalance = checkBalance(tokenAddress);
       require(hakBalance > 0, "no collateral deposited");
 
-
+      UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
       // the sum of loans of user + interest
-      uint loansBalance = checkLoans(token);
+      uint loansBalance = checkLoans(token, userLoansArray);
 
       IPriceOracle oracle = IPriceOracle(oracleAddress);
       uint hakPrice = oracle.getVirtualPrice(tokenAddress);
@@ -237,7 +237,8 @@ contract Bank is IBank {
      */
     function repay(address token, uint256 amount) payable external override returns (uint256) {
       require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "token not supported");
-      uint loansBalance = checkLoans(token);
+      UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
+      uint loansBalance = checkLoans(token, userLoansArray);
       require(loansBalance > 0, "nothing to repay");
       
       uint totalDebtExcludingInterest;
@@ -294,8 +295,9 @@ contract Bank is IBank {
      *           return MAX_INT.
      */
     function getCollateralRatio(address token, address account) view external override returns (uint256) {
-      // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.      
-      uint loansBalance = checkLoans(token);
+      // (deposits[account] + accruedInterest[account]) * 10000 / (borrowed[account] + owedInterest[account]) >= 15000.
+      UserLoan[] memory userLoansArray = ethLoansArray[account];  
+      uint loansBalance = checkLoans(token, userLoansArray);
       IPriceOracle oracle = IPriceOracle(oracleAddress);
       uint price = oracle.getVirtualPrice(tokenAddress);
       uint hakBalance = checkBalance(tokenAddress);      
@@ -306,12 +308,12 @@ contract Bank is IBank {
       return colateralRatio;
     }
 
-    function checkLoans(address token) view internal returns (uint256) {
+    function checkLoans(address token, UserLoan[] memory userLoansArray) view internal returns (uint256) {
       require((tokenAddress == token) || (token == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), "token not supported");
       uint total;
       uint totalInterestAccrued;
       
-      UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
+      // UserLoan[] memory userLoansArray = ethLoansArray[msg.sender];
 
       uint totalBorrowed;
       for (uint256 index = 0; index < userLoansArray.length; index++) {
