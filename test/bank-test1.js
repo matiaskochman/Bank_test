@@ -377,21 +377,17 @@ describe("Bank contract", function () {
       let collateralAmount = ethers.utils.parseEther("15.0");
       let borrowAmount = ethers.utils.parseEther("10.0");
       await hak.transfer(await acc1.getAddress(), collateralAmount);
-
       await hak1.approve(bank.address, collateralAmount);
-
-      await bank1.deposit(hak.address, collateralAmount);
-
-      await expect(bank1.borrow(ethMagic, borrowAmount))
+      await bank1.deposit(hak.address, collateralAmount); //block 0
+      await expect(bank1.borrow(ethMagic, borrowAmount)) // block 1
         .to.emit(bank, "Borrow")
         .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
-
       await mineBlocks(99);
       let liquidatorEthBalanceBefore = await acc2.getBalance();
       let liquidatorHakBalanceBefore = await hak2.balanceOf(await acc2.getAddress());
-      collateralAmount = ethers.utils.parseEther("15.0045");
+      // collateralAmount = ethers.utils.parseEther("15.0045"); // este es el resultado de 1 bloque y en la linea 385 mina 99 bloques
+      collateralAmount = ethers.utils.parseEther("15.4545"); // este es el resultado de la diferencia de 101 bloques
       let liquidatorAmount = ethers.utils.parseEther("16.0");
-
       await expect(bank2.liquidate(hak.address, await acc1.getAddress(), { value: liquidatorAmount}))
         .to.emit(bank, "Liquidate")
         .withArgs(
@@ -409,19 +405,19 @@ describe("Bank contract", function () {
         .to.equal(collateralAmount);
     });
 
-    // it ("collateral ratio lower than 150% but insufficient ETH", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   let borrowAmount = ethers.utils.parseEther("10.0");
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   await expect(bank1.borrow(ethMagic, borrowAmount))
-    //     .to.emit(bank, "Borrow")
-    //     .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
-    //   await mineBlocks(99);
-    //   let liquidatorAmount = ethers.utils.parseEther("10.0");
-    //   await expect(bank2.liquidate(hak.address, await acc1.getAddress(), { value: liquidatorAmount}))
-    //     .to.be.revertedWith("insufficient ETH sent by liquidator");
-    // });
+    it ("collateral ratio lower than 150% but insufficient ETH", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      let borrowAmount = ethers.utils.parseEther("10.0");
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+      await expect(bank1.borrow(ethMagic, borrowAmount))
+        .to.emit(bank, "Borrow")
+        .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
+      await mineBlocks(99);
+      let liquidatorAmount = ethers.utils.parseEther("10.0");
+      await expect(bank2.liquidate(hak.address, await acc1.getAddress(), { value: liquidatorAmount}))
+        .to.be.revertedWith("insufficient ETH sent by liquidator");
+    });
   });
 });

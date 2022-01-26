@@ -287,34 +287,34 @@ contract Bank is IBank {
 
       require(collateralRatio < 15000, "healty position");
 
-      UserLoan[] storage userLoanArray = ethLoansArray[account];
+      (uint totalDebtExcludingInterest, uint debtTotalInterest) = calculateRemainingDebt(ethLoansArray[account]);
 
+      uint borrowedToken = totalDebtExcludingInterest.add(debtTotalInterest);
+
+      require(borrowedToken <= msg.value, "insufficient ETH sent by liquidator");
+
+      UserLoan[] storage userLoanArray = ethLoansArray[account];
       
       (uint totalExcludingInterest, uint interest) = checkBalance(token, account);
-
-      uint collateral = totalExcludingInterest.add(interest);
-      uint hakBalance = totalExcludingInterest.add(interest);
-
-      uint loansBalance = checkLoans(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, account);
-
-      (uint totalDebtExcludingInterest, uint totalInterest) = calculateRemainingDebt(ethLoansArray[account]);
+      
+      uint hakCollateral = totalExcludingInterest.add(interest);
 
       processDebt(0, userLoanArray);
+      uint tokenSentBack = msg.value.sub(borrowedToken);
       
-      // AssertionError: Expected "15454500000000000000" to be equal 15004500000000000000
       emit Liquidate(
           msg.sender, // account which performs the liquidation  
           account, // account which is liquidated
           token, // token which was used as collateral
                                           // for the loan (not the token borrowed)
-          totalExcludingInterest, // amount of collateral token which is sent to the liquidator
-          10 // amount of borrowed token that is sent back to the
+          hakCollateral, // amount of collateral token which is sent to the liquidator
+          tokenSentBack // amount of borrowed token that is sent back to the
                                 // liquidator in case the amount that the liquidator
                                 // sent for liquidation was higher than the debt of the liquidated account
       );
 
-      IERC20(token).approve(address(this), collateral);
-      IERC20(token).transferFrom(address(this), msg.sender, collateral);
+      IERC20(token).approve(address(this), hakCollateral);
+      IERC20(token).transferFrom(address(this), msg.sender, hakCollateral);
 
       return true;
     }
