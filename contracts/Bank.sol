@@ -244,10 +244,35 @@ contract Bank is IBank {
       require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "token not supported");
       uint loansBalance = checkLoans(token);
       require(loansBalance > 0, "nothing to repay");
-      require(msg.value == amount, "msg.value < amount to repay");
+      
+      uint totalDebtExcludingInterest;
+      uint totalInterest;
+      uint remainingDebt;
+      if(amount == 0) {
+        // first it is calculated de totalDebt to check if the payment is correct.
+        (totalDebtExcludingInterest, totalInterest) = calculateRemainingDebt(ethLoansArray[msg.sender]);
+        remainingDebt = totalDebtExcludingInterest.add(totalInterest);
+        require(remainingDebt <= msg.value, "msg.value < amount to repay");
+        // the payment is correct so the debt cancelation is done 
+        processDebt(amount,ethLoansArray[msg.sender]);
+        (totalDebtExcludingInterest, totalInterest) = calculateRemainingDebt(ethLoansArray[msg.sender]);
+        remainingDebt = totalDebtExcludingInterest.add(totalInterest);
+      } else {
 
-      calculateRepay(amount,ethLoansArray[msg.sender]);
-      return 1;
+        require(remainingDebt <= msg.value, "msg.value < amount to repay");
+        processDebt(amount,ethLoansArray[msg.sender]);
+        (totalDebtExcludingInterest, totalInterest) = calculateRemainingDebt(ethLoansArray[msg.sender]);
+        remainingDebt = totalDebtExcludingInterest.add(totalInterest);
+
+      }
+
+      emit Repay(
+          msg.sender, // accout which repaid the loan
+          token, // token that was borrowed and repaid
+          remainingDebt // amount that still remains to be paid (including interest)
+      );
+
+      return totalDebtExcludingInterest;
     }
      
     /**
@@ -325,7 +350,7 @@ contract Bank is IBank {
       return balance;
     }
 
-    function calculateRepay(uint amount, UserLoan[] storage userLoanArray) internal returns (uint, uint){
+    function processDebt(uint amount, UserLoan[] storage userLoanArray) internal returns (uint, uint){
       require(amount >= 0, "invalid amount value");
       uint totalToRepay = amount;
       uint totalInterestToPay;
@@ -362,10 +387,32 @@ contract Bank is IBank {
           if(totalToRepay == 0) {
             break;
           }
-
         }
 
+        // return the amount still left to pay for this loan, excluding interest
+      } else {
+        for (uint256 index = 0; index < userLoanArray.length; index++) {
+          userLoanArray[index].amountBorrowed = 0;
+        }
       }
+    }
+
+    function calculateRemainingDebt(UserLoan[] memory userLoanArray) view internal returns (uint, uint){
+      uint totalDebtLeftExludingInterest;
+      uint totalInterest;
+
+      for (uint256 index = 0; index < userLoanArray.length; index++) {
+        if(userLoanArray[index].amountBorrowed == 0) {
+          continue;
+        }
+        uint blockDelta = (block.number.sub(userLoanArray[index].blockNumber));
+        uint amountWithoutInterest = userLoanArray[index].amountBorrowed.mul(10000).div(blockDelta.mul(10005));
+        uint interest = amountWithoutInterest.mul(blockDelta.mul(5)).div(10000);
+
+        totalDebtLeftExludingInterest = totalDebtLeftExludingInterest.add(userLoanArray[index].amountBorrowed);
+        totalInterest = totalInterest.add(interest);
+      }
+      return (totalDebtLeftExludingInterest, totalInterest);
     }
 
     function calculateWithdraw(uint amount, UserDeposit[] storage userDepositArray) internal returns (uint, uint){     

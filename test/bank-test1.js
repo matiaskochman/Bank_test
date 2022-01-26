@@ -322,33 +322,30 @@ describe("Bank contract", function () {
         .to.emit(bank, "Borrow")
         .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
       let amountDue = borrowAmount.add("5000000000000000")
-      await expect(bank1.repay(ethMagic, amountDue, {value: amountDue}));
-        // .to.emit(bank, "Repay")
-        // .withArgs(await acc1.getAddress(), ethMagic,
-        // 0);
-
-      // await expect(bank1.repay(ethMagic, BigNumber.from(0), {value: amountDue}))
-      //   .to.emit(bank, "Repay")
-      //   .withArgs(await acc1.getAddress(), ethMagic,
-      //   0);
+      await expect(bank1.repay(ethMagic, BigNumber.from(0), {value: amountDue}))
+        .to.emit(bank, "Repay")
+        .withArgs(await acc1.getAddress(), ethMagic,
+        0);
     });
 
-    // it ("repay partial amount", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   let borrowAmount = ethers.utils.parseEther("10.0");
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   await expect(bank1.borrow(ethMagic, borrowAmount))
-    //     .to.emit(bank, "Borrow")
-    //     .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
-    //   let amountToRepay = ethers.utils.parseEther("4.0");
-    //   let remainingDebt = await expect(bank1.repay(ethMagic, amountToRepay, { value: amountToRepay}))
-    //     .to.emit(bank, "Repay")
-    //     .withArgs(await acc1.getAddress(), ethMagic,
-    //     borrowAmount.sub(amountToRepay)
-    //     .add(5000000000000000)); // interest for 1 block)
-    // });
+    it ("repay partial amount", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      let borrowAmount = ethers.utils.parseEther("10.0");
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+
+      await expect(bank1.borrow(ethMagic, borrowAmount))
+        .to.emit(bank, "Borrow")
+        .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
+        
+      let amountToRepay = ethers.utils.parseEther("4.0");
+      let remainingDebt = await expect(bank1.repay(ethMagic, amountToRepay, { value: amountToRepay}))
+        .to.emit(bank, "Repay")
+        .withArgs(await acc1.getAddress(), ethMagic,
+        borrowAmount.sub(amountToRepay)
+        .add(5000000000000000)); // interest for 1 block)
+    });
   });
 
   // describe("liquidate", async function () {
