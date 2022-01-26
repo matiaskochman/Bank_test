@@ -299,34 +299,39 @@ describe("Bank contract", function () {
       await expect(bank1.repay(hak.address, amount)).to.be.revertedWith("token not supported");
     });
 
-    // it ("lower amount sent", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   let borrowAmount = ethers.utils.parseEther("10.0");
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   await expect(bank1.borrow(ethMagic, borrowAmount))
-    //     .to.emit(bank, "Borrow")
-    //     .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
-    //   let amount = BigNumber.from(1000);
-    //   await expect(bank1.repay(ethMagic, amount,  {value: amount.sub(1)})).to.be.revertedWith("msg.value < amount to repay");
-    // });
+    it ("lower amount sent", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      let borrowAmount = ethers.utils.parseEther("10.0");
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+      await expect(bank1.borrow(ethMagic, borrowAmount))
+        .to.emit(bank, "Borrow")
+        .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
+      let amount = BigNumber.from(1000);
+      await expect(bank1.repay(ethMagic, amount,  {value: amount.sub(1)})).to.be.revertedWith("msg.value < amount to repay");
+    });
 
-    // it ("repay full amount", async function () {
-    //   let collateralAmount = ethers.utils.parseEther("15.0");
-    //   let borrowAmount = ethers.utils.parseEther("10.0");
-    //   await hak.transfer(await acc1.getAddress(), collateralAmount);
-    //   await hak1.approve(bank.address, collateralAmount);
-    //   await bank1.deposit(hak.address, collateralAmount);
-    //   await expect(bank1.borrow(ethMagic, borrowAmount))
-    //     .to.emit(bank, "Borrow")
-    //     .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
-    //   let amountDue = borrowAmount.add("5000000000000000")
-    //   await expect(bank1.repay(ethMagic, BigNumber.from(0), {value: amountDue}))
-    //     .to.emit(bank, "Repay")
-    //     .withArgs(await acc1.getAddress(), ethMagic,
-    //     0);
-    // });
+    it ("repay full amount", async function () {
+      let collateralAmount = ethers.utils.parseEther("15.0");
+      let borrowAmount = ethers.utils.parseEther("10.0");
+      await hak.transfer(await acc1.getAddress(), collateralAmount);
+      await hak1.approve(bank.address, collateralAmount);
+      await bank1.deposit(hak.address, collateralAmount);
+      await expect(bank1.borrow(ethMagic, borrowAmount))
+        .to.emit(bank, "Borrow")
+        .withArgs(await acc1.getAddress(), ethMagic, borrowAmount, 15004);
+      let amountDue = borrowAmount.add("5000000000000000")
+      await expect(bank1.repay(ethMagic, amountDue, {value: amountDue}));
+        // .to.emit(bank, "Repay")
+        // .withArgs(await acc1.getAddress(), ethMagic,
+        // 0);
+
+      // await expect(bank1.repay(ethMagic, BigNumber.from(0), {value: amountDue}))
+      //   .to.emit(bank, "Repay")
+      //   .withArgs(await acc1.getAddress(), ethMagic,
+      //   0);
+    });
 
     // it ("repay partial amount", async function () {
     //   let collateralAmount = ethers.utils.parseEther("15.0");

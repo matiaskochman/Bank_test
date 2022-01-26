@@ -244,7 +244,9 @@ contract Bank is IBank {
       require(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token, "token not supported");
       uint loansBalance = checkLoans(token);
       require(loansBalance > 0, "nothing to repay");
+      require(msg.value == amount, "msg.value < amount to repay");
 
+      calculateRepay(amount,ethLoansArray[msg.sender]);
       return 1;
     }
      
@@ -323,8 +325,52 @@ contract Bank is IBank {
       return balance;
     }
 
+    function calculateRepay(uint amount, UserLoan[] storage userLoanArray) internal returns (uint, uint){
+      require(amount >= 0, "invalid amount value");
+      uint totalToRepay = amount;
+      uint totalInterestToPay;
+
+      // X = amount to repay
+      // Y = part without interest
+      // Z = interest
+
+      // X = Y + Z
+      // Z = (Y * 5) * (amountOfBlocks) / 10000
+      // X = Y + (Y * 5 * amountOfBlocks) / 10000
+
+      if(amount >0 ) {
+        for (uint256 index = 0; index < userLoanArray.length; index++) {
+          if(userLoanArray[index].amountBorrowed == 0) {
+            continue;
+          }
+          uint blockDelta = (block.number.sub(userLoanArray[index].blockNumber));
+          uint amountWithoutInterest = amount.mul(10000).div(blockDelta.mul(10005));
+          uint interest = amountWithoutInterest.mul(blockDelta.mul(5)).div(10000);
+
+          console.log("amount: ", amount);
+          console.log("amountWithNoInterest: ", amountWithoutInterest);
+          console.log("interest: ", interest);
+          totalInterestToPay = totalInterestToPay.add(interest);
+          totalToRepay = totalToRepay.sub(amountWithoutInterest);
+
+          if(amountWithoutInterest >= userLoanArray[index].amountBorrowed) {
+            userLoanArray[index].amountBorrowed = 0;
+          } else {
+            userLoanArray[index].amountBorrowed = userLoanArray[index].amountBorrowed.sub(amountWithoutInterest);
+          }
+
+          if(totalToRepay == 0) {
+            break;
+          }
+
+        }
+
+      }
+    }
 
     function calculateWithdraw(uint amount, UserDeposit[] storage userDepositArray) internal returns (uint, uint){     
+        require(amount >= 0, "invalid amount value");
+
         if(amount != 0) {
           // tengo que sacar el amount adecuado, recorriendo cada deposito y calculando el interes sobre cada depósito
           // es probable que tenga que sacar parte de un deposito y dejar depositado el resto del mismo depósito
@@ -340,7 +386,7 @@ contract Bank is IBank {
             }
             uint val = total.add(userDepositArray[index].amountDeposited);
 
-            if((val <= amount)) {              
+            if((val <= amount)) {
               total = total.add(userDepositArray[index].amountDeposited);
 
               uint interest_accrued_per_block = userDepositArray[index].amountDeposited.mul(3).div(10000);
