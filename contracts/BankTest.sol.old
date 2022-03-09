@@ -3,7 +3,7 @@ pragma solidity 0.7.0;
 // import "@openzeppelin/contracts/math/SafeMath.sol";
 import "./IBank.sol";
 import "./IPriceOracle.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 
 
@@ -149,6 +149,7 @@ library SafeMath {
         return a % b;
     }
 }
+
 interface IERC20 {
     function totalSupply() external view returns (uint);
     function balanceOf(address account) external view returns (uint);
@@ -168,12 +169,18 @@ contract Bank is IBank {
     using SafeMath for uint;
     address public oracleAddress;
     address public tokenAddress;
-    mapping(address => uint) private hakBalanceOf;
-    mapping(address => uint) private ethBalanceOf;
-    mapping(address => UserDeposit[]) private hakDepositArray;
-    mapping(address => UserDeposit[]) private ethDepositArray;
-    mapping(address => uint) private ethBalanceBorrowed;
-    mapping(address => UserLoan[]) private ethLoansArray;
+    mapping(address => uint) hakBalanceOf;
+    // mapping(address => uint) private hakBalanceOf;
+    mapping(address => uint)  ethBalanceOf;
+    // mapping(address => uint) private ethBalanceOf;
+    mapping(address => UserDeposit[]) hakDepositArray;
+    // mapping(address => UserDeposit[]) private hakDepositArray;
+    mapping(address => UserDeposit[]) ethDepositArray;
+    // mapping(address => UserDeposit[]) private ethDepositArray;
+    mapping(address => uint) ethBalanceBorrowed;
+    // mapping(address => uint) private ethBalanceBorrowed;
+    mapping(address => UserLoan[]) ethLoansArray;
+    // mapping(address => UserLoan[]) private ethLoansArray;
 
     constructor(address _oracleAddress, address _tokenAddress) {
       oracleAddress = _oracleAddress;
@@ -222,7 +229,7 @@ contract Bank is IBank {
         IERC20(tokenAddress).transferFrom(msg.sender, address(this), amount);
       } else if (0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE == token) {
 
-        ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].add(amount);              
+        ethBalanceOf[msg.sender] = ethBalanceOf[msg.sender].add(amount);                        
         UserDeposit memory deposit = UserDeposit(amount, block.number);
         ethDepositArray[msg.sender].push(deposit);
 
@@ -704,4 +711,20 @@ contract Bank is IBank {
       // uint returnValue = total.add(totalInterestAccrued);
       return (total, totalInterestAccrued);
   }
+}
+
+contract BankTest is Bank {
+  
+  address echidna_oracle = 0x00a329C0648769a73afAC7F9381e08fb43DBEA70;
+  address echidna_token = 0x00A329c0648769A73afaC7F9381E08Fb43DBeA71;
+    constructor() Bank(echidna_oracle, echidna_token) {}
+  function echidna_deposit() public returns (bool) {
+
+    if(hakBalanceOf[msg.sender] == 10 && hakDepositArray[msg.sender].length > 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
 }
